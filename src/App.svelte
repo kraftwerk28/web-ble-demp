@@ -31,23 +31,6 @@
       })
       .filter((s) => s);
     characteristicsList = c.CHARACTERISTICS;
-
-    /* const service = await server.getPrimaryService( */
-    /*   c.ALL_SERVICES['Heart Rate'] */
-    /* ); */
-    /* console.log('Service:', service); */
-
-    /* const ch = await service.getCharacteristic('heart_rate_measurement'); */
-    /* // console.log('Characteristic:', ch); */
-    /* // console.log(`Characteristic value:`, decodeValue(await ch.readValue())); */
-    /* // const desc = await ch.getDescriptor('gatt.client_characteristic_configuration'); */
-    /* // console.log('Descriptor:', desc); */
-    /* // console.log(await desc.readValue()); */
-    /* // await desc.writeValue(Uint8Array.of(1)); */
-    /* await ch.startNotifications(); */
-    /* ch.addEventListener('characteristicvaluechanged', (e) => { */
-    /*   console.log('Battery level:', e.target.value.getUint8(1)); */
-    /* }); */
   }
 
   $: {
@@ -72,14 +55,11 @@
         console.log('Device:', d);
         device = d;
         connectState = 'connecting';
-        device.addEventListener(
-          'gattserverdisconnected',
-          () => (connectState = 'disconnected')
-        );
+        device.addEventListener('gattserverdisconnected', reset);
         return interact();
       },
       () => {
-        connectState = 'failed';
+        reset();
       }
     );
   }
@@ -89,10 +69,18 @@
       reqConnect();
     } else if (connectState === 'connected') {
       device.gatt.disconnect();
-      connectState = 'disconnected';
-      serviceList = [];
-      characteristicsList = [];
+      reset();
     }
+  }
+
+  function reset() {
+    gattServer = null;
+    service = null;
+    characteristic = null;
+    connectState = 'disconnected';
+    serviceList = [];
+    characteristicsList = [];
+    selectedCharacteristicUUID = selectedServiceUUID = undefined;
   }
 </script>
 
@@ -107,6 +95,15 @@
     color: #f00;
   }
 </style>
+
+<h4>
+  Warning! Check if your browser
+  <a
+    target="_blank"
+    href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API">
+    supports BLE API
+  </a>
+</h4>
 
 <h3
   class:connected={connectState === 'connected'}
