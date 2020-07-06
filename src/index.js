@@ -5,3 +5,5 @@ window.addEventListener('DOMContentLoaded', function() {
     target: document.querySelector('#root'),
   });
 });
+
+// Must register serviceWorker...

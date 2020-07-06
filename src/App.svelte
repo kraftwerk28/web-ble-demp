@@ -1,6 +1,9 @@
 <script>
+  import Warning from './Warning.svelte';
+  import MessageLog, { log } from './MessageLog.svelte';
   import * as c from './constants';
   import Characteristic from './Characteristic.svelte';
+  import Footer from './Footer.svelte';
 
   let serviceList = [];
   let characteristicsList = [];
@@ -37,7 +40,8 @@
     if (gattServer && selectedServiceUUID) {
       gattServer
         .getPrimaryService(selectedServiceUUID)
-        .then((s) => (service = s));
+        .then((s) => (service = s))
+        .catch(log);
     }
   }
 
@@ -45,7 +49,8 @@
     if (gattServer && service && selectedCharacteristicUUID) {
       service
         .getCharacteristic(selectedCharacteristicUUID)
-        .then((ch) => (characteristic = ch));
+        .then((ch) => (characteristic = ch))
+        .catch(log);
     }
   }
 
@@ -58,13 +63,17 @@
         device.addEventListener('gattserverdisconnected', reset);
         return interact();
       },
-      () => {
+      (err) => {
+        log(err);
         reset();
       }
     );
   }
 
   function manipulateConnection() {
+    if (!navigator.bluetooth) {
+      log("Your device doesn't support BLE API.", 'error');
+    }
     if (connectState === 'disconnected') {
       reqConnect();
     } else if (connectState === 'connected') {
@@ -94,16 +103,26 @@
   .failed {
     color: #f00;
   }
+  .double-side {
+    display: flex;
+    flex-flow: row wrap;
+  }
+  .double-side > div:nth-child(1) {
+    border-right: 1px solid #000;
+    border-bottom: none;
+  }
+  @media screen and (max-width: 800px) {
+    .double-side > div:nth-child(1) {
+      border-right: none;
+      border-bottom: 1px solid #000;
+    }
+  }
+  .double-side > div {
+    flex: 1 1 400px;
+  }
 </style>
 
-<h4>
-  Warning! Check if your browser
-  <a
-    target="_blank"
-    href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API">
-    supports BLE API
-  </a>
-</h4>
+<Warning />
 
 <h3
   class:connected={connectState === 'connected'}
@@ -112,54 +131,63 @@
   Status: {connectState}
 </h3>
 
-<button
-  disabled={connectState === 'connecting'}
-  on:click={manipulateConnection}>
+<div class="double-side">
+  <div>
+    <button
+      disabled={connectState === 'connecting'}
+      on:click={manipulateConnection}>
 
-  {#if connectState === 'disconnected'}
-    Connect
-  {:else if connectState === 'connecting'}
-    Connecting...
-  {:else if connectState === 'connected'}Disconnect{:else}Failed{/if}
-</button>
+      {#if connectState === 'disconnected'}
+        Connect
+      {:else if connectState === 'connecting'}
+        Connecting...
+      {:else if connectState === 'connected'}Disconnect{:else}Failed{/if}
+    </button>
 
-{#if serviceList.length}
-  <select bind:value={selectedServiceUUID}>
-    <option selected disabled value={undefined}>Select service...</option>
-    {#each serviceList as service}
-      <option value={service.uuid}>{service.readableName}</option>
-    {/each}
-  </select>
-{/if}
+    {#if serviceList.length}
+      <select bind:value={selectedServiceUUID}>
+        <option selected disabled value={undefined}>Select service...</option>
+        {#each serviceList as service}
+          <option value={service.uuid}>{service.readableName}</option>
+        {/each}
+      </select>
+    {/if}
 
-{#if characteristicsList.length && selectedServiceUUID}
-  <select bind:value={selectedCharacteristicUUID}>
-    <option selected disabled value={undefined}>
-      Select characteristic...
-    </option>
-    {#each characteristicsList as ch}
-      <option value={ch.uuid}>{ch.readableName}</option>
-    {/each}
-  </select>
-{/if}
+    {#if characteristicsList.length && selectedServiceUUID}
+      <select bind:value={selectedCharacteristicUUID}>
+        <option selected disabled value={undefined}>
+          Select characteristic...
+        </option>
+        {#each characteristicsList as ch}
+          <option value={ch.uuid}>{ch.readableName}</option>
+        {/each}
+      </select>
+    {/if}
 
-<br />
-{#if device && connectState === 'connected'}
-  <h3>Device: {device.name} ({device.id})</h3>
-{/if}
+    <br />
+    {#if device && connectState === 'connected'}
+      <h3>Device: {device.name} ({device.id})</h3>
+    {/if}
 
-<br />
-<span>
-  {'Selected service:'}
-  {selectedServiceUUID ? `0x${selectedServiceUUID.toString('16')}` : 'none'}
-</span>
-<br />
-<span>
-  {'Selected characteristic:'}
-  {selectedCharacteristicUUID ? `0x${selectedCharacteristicUUID.toString('16')}` : 'none'}
-</span>
+    <br />
+    <span>
+      {'Selected service:'}
+      {selectedServiceUUID ? `0x${selectedServiceUUID.toString('16')}` : 'none'}
+    </span>
+    <br />
+    <span>
+      {'Selected characteristic:'}
+      {selectedCharacteristicUUID ? `0x${selectedCharacteristicUUID.toString('16')}` : 'none'}
+    </span>
 
-<br />
-{#if characteristic}
-  <Characteristic ch={characteristic} />
-{/if}
+  </div>
+
+  <div>
+    <Characteristic ch={characteristic} />
+  </div>
+
+</div>
+
+<hr />
+<MessageLog />
+<Footer />

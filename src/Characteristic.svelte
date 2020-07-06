@@ -1,5 +1,7 @@
 <script>
   import { onDestroy } from 'svelte';
+  import { log } from './MessageLog.svelte';
+  import { decodeDataView } from './utils';
 
   export let ch;
 
@@ -8,35 +10,47 @@
   }
 
   let readResult;
-  async function onReadValue() {
-    readResult = await ch.readValue();
-    Object.assign(window, { readResult });
+  let isNotifying = false;
+  function onReadValue() {
+    ch.readValue()
+      .then((readResult) => {
+        Object.assign(window, { readResult });
+        log(decodeDataView(readResult));
+      })
+      .catch(log);
   }
 
   async function onWriteValue() {}
 
-  async function onStartNotify() {
-    ch.addEventListener('characteristicvaluechanged', onChValueChaged);
-    await ch.startNotifications();
+  async function onToggleNotify() {
+    if (isNotifying) {
+      ch.removeEventListener('characteristicvaluechanged', onChValueChaged);
+      ch.stopNotifications().then(() => (isNotifying = false));
+    } else {
+      ch.addEventListener('characteristicvaluechanged', onChValueChaged);
+      ch.startNotifications().then(() => (isNotifying = true));
+    }
   }
 
   function onChValueChaged(e) {
-    console.log(e);
+    log(decodeDataView(e.target.value));
   }
 
   onDestroy(() => {
     ch.removeEventListener('characteristicvaluechanged', onChValueChaged);
   });
-
-  let notificationLog = '';
 </script>
 
-<form on:submit|preventDefault={onReadValue}>
-  <button type="submit">Read value</button>
-  <input type="text" value={readResult} readonly />
-</form>
+<h3>Current characteristic:</h3>
+{#if ch}
+  <form on:submit|preventDefault={onReadValue}>
+    <button type="submit">Read value</button>
+    <input type="text" value={readResult || ''} readonly />
+  </form>
 
-<form on:submit|preventDefault={onStartNotify}>
-  <button type="submit">Start notify</button>
-  <textarea readonly bind:value={notificationLog} />
-</form>
+  <form on:submit|preventDefault={onToggleNotify}>
+    <button type="submit">
+      {!isNotifying ? 'Start notify' : 'Stop notifications'}
+    </button>
+  </form>
+{/if}
