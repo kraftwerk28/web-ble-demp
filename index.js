@@ -2,6 +2,7 @@
     'use strict';
 
     function noop() { }
+    const identity = x => x;
     function run(fn) {
         return fn();
     }
@@ -16,6 +17,54 @@
     }
     function safe_not_equal(a, b) {
         return a != a ? b == b : a !== b || ((a && typeof a === 'object') || typeof a === 'function');
+    }
+    function subscribe(store, ...callbacks) {
+        if (store == null) {
+            return noop;
+        }
+        const unsub = store.subscribe(...callbacks);
+        return unsub.unsubscribe ? () => unsub.unsubscribe() : unsub;
+    }
+    function component_subscribe(component, store, callback) {
+        component.$$.on_destroy.push(subscribe(store, callback));
+    }
+    function null_to_empty(value) {
+        return value == null ? '' : value;
+    }
+
+    const is_client = typeof window !== 'undefined';
+    let now = is_client
+        ? () => window.performance.now()
+        : () => Date.now();
+    let raf = is_client ? cb => requestAnimationFrame(cb) : noop;
+
+    const tasks = new Set();
+    function run_tasks(now) {
+        tasks.forEach(task => {
+            if (!task.c(now)) {
+                tasks.delete(task);
+                task.f();
+            }
+        });
+        if (tasks.size !== 0)
+            raf(run_tasks);
+    }
+    /**
+     * Creates a new task that runs on each raf frame
+     * until it returns a falsy value or is aborted
+     */
+    function loop(callback) {
+        let task;
+        if (tasks.size === 0)
+            raf(run_tasks);
+        return {
+            promise: new Promise(fulfill => {
+                tasks.add(task = { c: callback, f: fulfill });
+            }),
+            abort() {
+                tasks.delete(task);
+            }
+        };
     }
 
     function append(target, node) {
@@ -70,9 +119,6 @@
         if (text.data !== data)
             text.data = data;
     }
-    function set_input_value(input, value) {
-        input.value = value == null ? '' : value;
-    }
     function select_option(select, value) {
         for (let i = 0; i < select.options.length; i += 1) {
             const option = select.options[i];
@@ -88,6 +134,72 @@
     }
     function toggle_class(element, name, toggle) {
         element.classList[toggle ? 'add' : 'remove'](name);
+    }
+    function custom_event(type, detail) {
+        const e = document.createEvent('CustomEvent');
+        e.initCustomEvent(type, false, false, detail);
+        return e;
+    }
+
+    const active_docs = new Set();
+    let active = 0;
+    // https://github.com/darkskyapp/string-hash/blob/master/index.js
+    function hash(str) {
+        let hash = 5381;
+        let i = str.length;
+        while (i--)
+            hash = ((hash << 5) - hash) ^ str.charCodeAt(i);
+        return hash >>> 0;
+    }
+    function create_rule(node, a, b, duration, delay, ease, fn, uid = 0) {
+        const step = 16.666 / duration;
+        let keyframes = '{\n';
+        for (let p = 0; p <= 1; p += step) {
+            const t = a + (b - a) * ease(p);
+            keyframes += p * 100 + `%{${fn(t, 1 - t)}}\n`;
+        }
+        const rule = keyframes + `100% {${fn(b, 1 - b)}}\n}`;
+        const name = `__svelte_${hash(rule)}_${uid}`;
+        const doc = node.ownerDocument;
+        active_docs.add(doc);
+        const stylesheet = doc.__svelte_stylesheet || (doc.__svelte_stylesheet = doc.head.appendChild(element('style')).sheet);
+        const current_rules = doc.__svelte_rules || (doc.__svelte_rules = {});
+        if (!current_rules[name]) {
+            current_rules[name] = true;
+            stylesheet.insertRule(`@keyframes ${name} ${rule}`, stylesheet.cssRules.length);
+        }
+        const animation = node.style.animation || '';
+        node.style.animation = `${animation ? `${animation}, ` : ``}${name} ${duration}ms linear ${delay}ms 1 both`;
+        active += 1;
+        return name;
+    }
+    function delete_rule(node, name) {
+        const previous = (node.style.animation || '').split(', ');
+        const next = previous.filter(name
+            ? anim => anim.indexOf(name) < 0 // remove specific animation
+            : anim => anim.indexOf('__svelte') === -1 // remove all Svelte animations
+        );
+        const deleted = previous.length - next.length;
+        if (deleted) {
+            node.style.animation = next.join(', ');
+            active -= deleted;
+            if (!active)
+                clear_rules();
+        }
+    }
+    function clear_rules() {
+        raf(() => {
+            if (active)
+                return;
+            active_docs.forEach(doc => {
+                const stylesheet = doc.__svelte_stylesheet;
+                let i = stylesheet.cssRules.length;
+                while (i--)
+                    stylesheet.deleteRule(i);
+                doc.__svelte_rules = {};
+            });
+            active_docs.clear();
+        });
     }
 
     let current_component;
@@ -165,6 +277,20 @@
             $$.after_update.forEach(add_render_callback);
         }
     }
+
+    let promise;
+    function wait() {
+        if (!promise) {
+            promise = Promise.resolve();
+            promise.then(() => {
+                promise = null;
+            });
+        }
+        return promise;
+    }
+    function dispatch(node, direction, kind) {
+        node.dispatchEvent(custom_event(`${direction ? 'intro' : 'outro'}${kind}`));
+    }
     const outroing = new Set();
     let outros;
     function group_outros() {
@@ -201,6 +327,192 @@
             });
             block.o(local);
         }
+    }
+    const null_transition = { duration: 0 };
+    function create_bidirectional_transition(node, fn, params, intro) {
+        let config = fn(node, params);
+        let t = intro ? 0 : 1;
+        let running_program = null;
+        let pending_program = null;
+        let animation_name = null;
+        function clear_animation() {
+            if (animation_name)
+                delete_rule(node, animation_name);
+        }
+        function init(program, duration) {
+            const d = program.b - t;
+            duration *= Math.abs(d);
+            return {
+                a: t,
+                b: program.b,
+                d,
+                duration,
+                start: program.start,
+                end: program.start + duration,
+                group: program.group
+            };
+        }
+        function go(b) {
+            const { delay = 0, duration = 300, easing = identity, tick = noop, css } = config || null_transition;
+            const program = {
+                start: now() + delay,
+                b
+            };
+            if (!b) {
+                // @ts-ignore todo: improve typings
+                program.group = outros;
+                outros.r += 1;
+            }
+            if (running_program) {
+                pending_program = program;
+            }
+            else {
+                // if this is an intro, and there's a delay, we need to do
+                // an initial tick and/or apply CSS animation immediately
+                if (css) {
+                    clear_animation();
+                    animation_name = create_rule(node, t, b, duration, delay, easing, css);
+                }
+                if (b)
+                    tick(0, 1);
+                running_program = init(program, duration);
+                add_render_callback(() => dispatch(node, b, 'start'));
+                loop(now => {
+                    if (pending_program && now > pending_program.start) {
+                        running_program = init(pending_program, duration);
+                        pending_program = null;
+                        dispatch(node, running_program.b, 'start');
+                        if (css) {
+                            clear_animation();
+                            animation_name = create_rule(node, t, running_program.b, running_program.duration, 0, easing, config.css);
+                        }
+                    }
+                    if (running_program) {
+                        if (now >= running_program.end) {
+                            tick(t = running_program.b, 1 - t);
+                            dispatch(node, running_program.b, 'end');
+                            if (!pending_program) {
+                                // we're done
+                                if (running_program.b) {
+                                    // intro — we can tidy up immediately
+                                    clear_animation();
+                                }
+                                else {
+                                    // outro — needs to be coordinated
+                                    if (!--running_program.group.r)
+                                        run_all(running_program.group.c);
+                                }
+                            }
+                            running_program = null;
+                        }
+                        else if (now >= running_program.start) {
+                            const p = now - running_program.start;
+                            t = running_program.a + running_program.d * easing(p / running_program.duration);
+                            tick(t, 1 - t);
+                        }
+                    }
+                    return !!(running_program || pending_program);
+                });
+            }
+        }
+        return {
+            run(b) {
+                if (is_function(config)) {
+                    wait().then(() => {
+                        // @ts-ignore
+                        config = config();
+                        go(b);
+                    });
+                }
+                else {
+                    go(b);
+                }
+            },
+            end() {
+                clear_animation();
+                running_program = pending_program = null;
+            }
+        };
+    }
+    function outro_and_destroy_block(block, lookup) {
+        transition_out(block, 1, 1, () => {
+            lookup.delete(block.key);
+        });
+    }
+    function update_keyed_each(old_blocks, dirty, get_key, dynamic, ctx, list, lookup, node, destroy, create_each_block, next, get_context) {
+        let o = old_blocks.length;
+        let n = list.length;
+        let i = o;
+        const old_indexes = {};
+        while (i--)
+            old_indexes[old_blocks[i].key] = i;
+        const new_blocks = [];
+        const new_lookup = new Map();
+        const deltas = new Map();
+        i = n;
+        while (i--) {
+            const child_ctx = get_context(ctx, list, i);
+            const key = get_key(child_ctx);
+            let block = lookup.get(key);
+            if (!block) {
+                block = create_each_block(key, child_ctx);
+                block.c();
+            }
+            else if (dynamic) {
+                block.p(child_ctx, dirty);
+            }
+            new_lookup.set(key, new_blocks[i] = block);
+            if (key in old_indexes)
+                deltas.set(key, Math.abs(i - old_indexes[key]));
+        }
+        const will_move = new Set();
+        const did_move = new Set();
+        function insert(block) {
+            transition_in(block, 1);
+            block.m(node, next);
+            lookup.set(block.key, block);
+            next = block.first;
+            n--;
+        }
+        while (o && n) {
+            const new_block = new_blocks[n - 1];
+            const old_block = old_blocks[o - 1];
+            const new_key = new_block.key;
+            const old_key = old_block.key;
+            if (new_block === old_block) {
+                // do nothing
+                next = new_block.first;
+                o--;
+                n--;
+            }
+            else if (!new_lookup.has(old_key)) {
+                // remove old block
+                destroy(old_block, lookup);
+                o--;
+            }
+            else if (!lookup.has(new_key) || will_move.has(new_key)) {
+                insert(new_block);
+            }
+            else if (did_move.has(old_key)) {
+                o--;
+            }
+            else if (deltas.get(new_key) > deltas.get(old_key)) {
+                did_move.add(new_key);
+                insert(new_block);
+            }
+            else {
+                will_move.add(old_key);
+                o--;
+            }
+        }
+        while (o--) {
+            const old_block = old_blocks[o];
+            if (!new_lookup.has(old_block.key))
+                destroy(old_block, lookup);
+        }
+        while (n)
+            insert(new_blocks[n - 1]);
+        return new_blocks;
     }
     function create_component(block) {
         block && block.c();
@@ -317,6 +629,395 @@
         $set() {
             // overridden by instance, if it has props
         }
+    }
+
+    /* src/Warning.svelte generated by Svelte v3.23.2 */
+
+    function create_fragment(ctx) {
+    	let h4;
+    	let t3;
+    	let h5;
+
+    	return {
+    		c() {
+    			h4 = element("h4");
+
+    			h4.innerHTML = `
+  Warning! Check if your browser
+  <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API">
+    supports BLE API
+  </a>
+  .
+`;
+
+    			t3 = space();
+    			h5 = element("h5");
+
+    			h5.innerHTML = `
+  Also, check these links:
+  <a href="https://www.bluetooth.com/specifications/gatt/services/" target="_blank">
+    GATT services
+  </a>
+  and
+  <a href="https://www.bluetooth.com/specifications/gatt/characteristics/" target="_blank">
+    GATT characteristics
+  </a>
+  to match characteristics with selected service.
+`;
+    		},
+    		m(target, anchor) {
+    			insert(target, h4, anchor);
+    			insert(target, t3, anchor);
+    			insert(target, h5, anchor);
+    		},
+    		p: noop,
+    		i: noop,
+    		o: noop,
+    		d(detaching) {
+    			if (detaching) detach(h4);
+    			if (detaching) detach(t3);
+    			if (detaching) detach(h5);
+    		}
+    	};
+    }
+
+    class Warning extends SvelteComponent {
+    	constructor(options) {
+    		super();
+    		init(this, options, null, create_fragment, safe_not_equal, {});
+    	}
+    }
+
+    const genuuid = (function*() {
+      let c = 0;
+      while (true) {
+        yield c++;
+      }
+    })();
+
+    const textDecoder = new TextDecoder('utf-8');
+
+    function uuid() {
+      return genuuid.next().value;
+    }
+
+    function decodeDataView(dv) {
+      const arr = [];
+      for (let i = 0; i < dv.byteLength; i++) {
+        arr.push(dv.getUint8(i));
+      }
+      return arr;
+    }
+
+    const subscriber_queue = [];
+    /**
+     * Create a `Writable` store that allows both updating and reading by subscription.
+     * @param {*=}value initial value
+     * @param {StartStopNotifier=}start start and stop notifications for subscriptions
+     */
+    function writable(value, start = noop) {
+        let stop;
+        const subscribers = [];
+        function set(new_value) {
+            if (safe_not_equal(value, new_value)) {
+                value = new_value;
+                if (stop) { // store is ready
+                    const run_queue = !subscriber_queue.length;
+                    for (let i = 0; i < subscribers.length; i += 1) {
+                        const s = subscribers[i];
+                        s[1]();
+                        subscriber_queue.push(s, value);
+                    }
+                    if (run_queue) {
+                        for (let i = 0; i < subscriber_queue.length; i += 2) {
+                            subscriber_queue[i][0](subscriber_queue[i + 1]);
+                        }
+                        subscriber_queue.length = 0;
+                    }
+                }
+            }
+        }
+        function update(fn) {
+            set(fn(value));
+        }
+        function subscribe(run, invalidate = noop) {
+            const subscriber = [run, invalidate];
+            subscribers.push(subscriber);
+            if (subscribers.length === 1) {
+                stop = start(set) || noop;
+            }
+            run(value);
+            return () => {
+                const index = subscribers.indexOf(subscriber);
+                if (index !== -1) {
+                    subscribers.splice(index, 1);
+                }
+                if (subscribers.length === 0) {
+                    stop();
+                    stop = null;
+                }
+            };
+        }
+        return { set, update, subscribe };
+    }
+
+    function cubicOut(t) {
+        const f = t - 1.0;
+        return f * f * f + 1.0;
+    }
+
+    function slide(node, { delay = 0, duration = 400, easing = cubicOut }) {
+        const style = getComputedStyle(node);
+        const opacity = +style.opacity;
+        const height = parseFloat(style.height);
+        const padding_top = parseFloat(style.paddingTop);
+        const padding_bottom = parseFloat(style.paddingBottom);
+        const margin_top = parseFloat(style.marginTop);
+        const margin_bottom = parseFloat(style.marginBottom);
+        const border_top_width = parseFloat(style.borderTopWidth);
+        const border_bottom_width = parseFloat(style.borderBottomWidth);
+        return {
+            delay,
+            duration,
+            easing,
+            css: t => `overflow: hidden;` +
+                `opacity: ${Math.min(t * 20, 1) * opacity};` +
+                `height: ${t * height}px;` +
+                `padding-top: ${t * padding_top}px;` +
+                `padding-bottom: ${t * padding_bottom}px;` +
+                `margin-top: ${t * margin_top}px;` +
+                `margin-bottom: ${t * margin_bottom}px;` +
+                `border-top-width: ${t * border_top_width}px;` +
+                `border-bottom-width: ${t * border_bottom_width}px;`
+        };
+    }
+
+    /* src/MessageLog.svelte generated by Svelte v3.23.2 */
+
+    function add_css() {
+    	var style = element("style");
+    	style.id = "svelte-1hiloqm-style";
+    	style.textContent = ".message-log.svelte-1hiloqm.svelte-1hiloqm{margin:auto;width:55%}@media screen and (max-width: 920px){.message-log.svelte-1hiloqm.svelte-1hiloqm{margin:auto;width:unset}}.message-log.svelte-1hiloqm ol.svelte-1hiloqm{padding:0}.message-log.svelte-1hiloqm li.svelte-1hiloqm{display:block;border-radius:4px;padding:5px;margin:2px;border:1px solid rgba(0 0 0 / 0.4);cursor:pointer;text-align:left}.message-log.svelte-1hiloqm .message-info.svelte-1hiloqm{background:rgba(0 0 255 / 0.2)}.message-log.svelte-1hiloqm .message-error.svelte-1hiloqm{background:rgba(255 0 0 / 0.2)}.message-log.svelte-1hiloqm .message-warn.svelte-1hiloqm{background:rgba(255 255 0 / 0.2)}";
+    	append(document.head, style);
+    }
+
+    function get_each_context(ctx, list, i) {
+    	const child_ctx = ctx.slice();
+    	child_ctx[2] = list[i];
+    	child_ctx[4] = i;
+    	return child_ctx;
+    }
+
+    // (77:4) {#each $msgLog as msg, i (msg.id)}
+    function create_each_block(key_1, ctx) {
+    	let li;
+    	let t0_value = /*msg*/ ctx[2].id + "";
+    	let t0;
+    	let t1_value = ". " + "";
+    	let t1;
+    	let t2_value = /*msg*/ ctx[2].text + "";
+    	let t2;
+    	let t3;
+    	let li_class_value;
+    	let li_transition;
+    	let current;
+    	let mounted;
+    	let dispose;
+
+    	return {
+    		key: key_1,
+    		first: null,
+    		c() {
+    			li = element("li");
+    			t0 = text(t0_value);
+    			t1 = text(t1_value);
+    			t2 = text(t2_value);
+    			t3 = space();
+    			attr(li, "class", li_class_value = "" + (null_to_empty(`message-${/*msg*/ ctx[2].type}`) + " svelte-1hiloqm"));
+    			this.first = li;
+    		},
+    		m(target, anchor) {
+    			insert(target, li, anchor);
+    			append(li, t0);
+    			append(li, t1);
+    			append(li, t2);
+    			append(li, t3);
+    			current = true;
+
+    			if (!mounted) {
+    				dispose = listen(li, "click", function () {
+    					if (is_function(removeAt(/*i*/ ctx[4]))) removeAt(/*i*/ ctx[4]).apply(this, arguments);
+    				});
+
+    				mounted = true;
+    			}
+    		},
+    		p(new_ctx, dirty) {
+    			ctx = new_ctx;
+    			if ((!current || dirty & /*$msgLog*/ 1) && t0_value !== (t0_value = /*msg*/ ctx[2].id + "")) set_data(t0, t0_value);
+    			if ((!current || dirty & /*$msgLog*/ 1) && t2_value !== (t2_value = /*msg*/ ctx[2].text + "")) set_data(t2, t2_value);
+
+    			if (!current || dirty & /*$msgLog*/ 1 && li_class_value !== (li_class_value = "" + (null_to_empty(`message-${/*msg*/ ctx[2].type}`) + " svelte-1hiloqm"))) {
+    				attr(li, "class", li_class_value);
+    			}
+    		},
+    		i(local) {
+    			if (current) return;
+
+    			add_render_callback(() => {
+    				if (!li_transition) li_transition = create_bidirectional_transition(li, slide, {}, true);
+    				li_transition.run(1);
+    			});
+
+    			current = true;
+    		},
+    		o(local) {
+    			if (!li_transition) li_transition = create_bidirectional_transition(li, slide, {}, false);
+    			li_transition.run(0);
+    			current = false;
+    		},
+    		d(detaching) {
+    			if (detaching) detach(li);
+    			if (detaching && li_transition) li_transition.end();
+    			mounted = false;
+    			dispose();
+    		}
+    	};
+    }
+
+    function create_fragment$1(ctx) {
+    	let div;
+    	let h3;
+    	let button;
+    	let t1;
+    	let t2;
+    	let ol;
+    	let each_blocks = [];
+    	let each_1_lookup = new Map();
+    	let current;
+    	let mounted;
+    	let dispose;
+    	let each_value = /*$msgLog*/ ctx[0];
+    	const get_key = ctx => /*msg*/ ctx[2].id;
+
+    	for (let i = 0; i < each_value.length; i += 1) {
+    		let child_ctx = get_each_context(ctx, each_value, i);
+    		let key = get_key(child_ctx);
+    		each_1_lookup.set(key, each_blocks[i] = create_each_block(key, child_ctx));
+    	}
+
+    	return {
+    		c() {
+    			div = element("div");
+    			h3 = element("h3");
+    			button = element("button");
+    			button.textContent = "❌";
+    			t1 = text("\n    Message log:");
+    			t2 = space();
+    			ol = element("ol");
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].c();
+    			}
+
+    			attr(ol, "class", "svelte-1hiloqm");
+    			attr(div, "class", "message-log svelte-1hiloqm");
+    		},
+    		m(target, anchor) {
+    			insert(target, div, anchor);
+    			append(div, h3);
+    			append(h3, button);
+    			append(h3, t1);
+    			append(div, t2);
+    			append(div, ol);
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].m(ol, null);
+    			}
+
+    			current = true;
+
+    			if (!mounted) {
+    				dispose = listen(button, "click", /*click_handler*/ ctx[1]);
+    				mounted = true;
+    			}
+    		},
+    		p(ctx, [dirty]) {
+    			if (dirty & /*$msgLog, removeAt*/ 1) {
+    				const each_value = /*$msgLog*/ ctx[0];
+    				group_outros();
+    				each_blocks = update_keyed_each(each_blocks, dirty, get_key, 1, ctx, each_value, each_1_lookup, ol, outro_and_destroy_block, create_each_block, null, get_each_context);
+    				check_outros();
+    			}
+    		},
+    		i(local) {
+    			if (current) return;
+
+    			for (let i = 0; i < each_value.length; i += 1) {
+    				transition_in(each_blocks[i]);
+    			}
+
+    			current = true;
+    		},
+    		o(local) {
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				transition_out(each_blocks[i]);
+    			}
+
+    			current = false;
+    		},
+    		d(detaching) {
+    			if (detaching) detach(div);
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].d();
+    			}
+
+    			mounted = false;
+    			dispose();
+    		}
+    	};
+    }
+
+    let msgLog = writable([]);
+
+    function log(payload, type = "info") {
+    	let e;
+
+    	if (payload instanceof Error) {
+    		let text = "";
+    		if (payload.type) text += payload.text + ": ";
+    		text += payload.message;
+    		e = { text, type: "error", id: uuid() };
+    	} else {
+    		e = { text: payload, type, id: uuid() };
+    	}
+
+    	msgLog.update(m => [...m, e]);
+    }
+
+    function removeAt(index) {
+    	return () => {
+    		msgLog.update(m => {
+    			m.splice(index, 1);
+    			return [...m];
+    		});
+    	};
+    }
+
+    function instance($$self, $$props, $$invalidate) {
+    	let $msgLog;
+    	component_subscribe($$self, msgLog, $$value => $$invalidate(0, $msgLog = $$value));
+    	const click_handler = () => msgLog.set([]);
+    	return [$msgLog, click_handler];
+    }
+
+    class MessageLog extends SvelteComponent {
+    	constructor(options) {
+    		super();
+    		if (!document.getElementById("svelte-1hiloqm-style")) add_css();
+    		init(this, options, instance, create_fragment$1, safe_not_equal, {});
+    	}
     }
 
     const ALL_SERVICES = [
@@ -1717,16 +2418,21 @@
 
     /* src/Characteristic.svelte generated by Svelte v3.23.2 */
 
-    function create_fragment(ctx) {
+    function create_if_block(ctx) {
     	let form0;
     	let button0;
     	let t1;
     	let input;
+    	let input_value_value;
     	let t2;
     	let form1;
     	let button1;
-    	let t4;
-    	let textarea;
+
+    	let t3_value = (!/*isNotifying*/ ctx[1]
+    	? "Start notify"
+    	: "Stop notifications") + "";
+
+    	let t3;
     	let mounted;
     	let dispose;
 
@@ -1740,15 +2446,12 @@
     			t2 = space();
     			form1 = element("form");
     			button1 = element("button");
-    			button1.textContent = "Start notify";
-    			t4 = space();
-    			textarea = element("textarea");
+    			t3 = text(t3_value);
     			attr(button0, "type", "submit");
     			attr(input, "type", "text");
-    			input.value = /*readResult*/ ctx[0];
+    			input.value = input_value_value = /*readResult*/ ctx[2] || "";
     			input.readOnly = true;
     			attr(button1, "type", "submit");
-    			textarea.readOnly = true;
     		},
     		m(target, anchor) {
     			insert(target, form0, anchor);
@@ -1758,31 +2461,22 @@
     			insert(target, t2, anchor);
     			insert(target, form1, anchor);
     			append(form1, button1);
-    			append(form1, t4);
-    			append(form1, textarea);
-    			set_input_value(textarea, /*notificationLog*/ ctx[1]);
+    			append(button1, t3);
 
     			if (!mounted) {
     				dispose = [
-    					listen(form0, "submit", prevent_default(/*onReadValue*/ ctx[2])),
-    					listen(textarea, "input", /*textarea_input_handler*/ ctx[5]),
-    					listen(form1, "submit", prevent_default(/*onStartNotify*/ ctx[3]))
+    					listen(form0, "submit", prevent_default(/*onReadValue*/ ctx[3])),
+    					listen(form1, "submit", prevent_default(/*onToggleNotify*/ ctx[4]))
     				];
 
     				mounted = true;
     			}
     		},
-    		p(ctx, [dirty]) {
-    			if (dirty & /*readResult*/ 1 && input.value !== /*readResult*/ ctx[0]) {
-    				input.value = /*readResult*/ ctx[0];
-    			}
-
-    			if (dirty & /*notificationLog*/ 2) {
-    				set_input_value(textarea, /*notificationLog*/ ctx[1]);
-    			}
+    		p(ctx, dirty) {
+    			if (dirty & /*isNotifying*/ 2 && t3_value !== (t3_value = (!/*isNotifying*/ ctx[1]
+    			? "Start notify"
+    			: "Stop notifications") + "")) set_data(t3, t3_value);
     		},
-    		i: noop,
-    		o: noop,
     		d(detaching) {
     			if (detaching) detach(form0);
     			if (detaching) detach(t2);
@@ -1793,66 +2487,147 @@
     	};
     }
 
-    function onChValueChaged(e) {
-    	console.log(e);
+    function create_fragment$2(ctx) {
+    	let h3;
+    	let t1;
+    	let if_block_anchor;
+    	let if_block = /*ch*/ ctx[0] && create_if_block(ctx);
+
+    	return {
+    		c() {
+    			h3 = element("h3");
+    			h3.textContent = "Current characteristic:";
+    			t1 = space();
+    			if (if_block) if_block.c();
+    			if_block_anchor = empty();
+    		},
+    		m(target, anchor) {
+    			insert(target, h3, anchor);
+    			insert(target, t1, anchor);
+    			if (if_block) if_block.m(target, anchor);
+    			insert(target, if_block_anchor, anchor);
+    		},
+    		p(ctx, [dirty]) {
+    			if (/*ch*/ ctx[0]) {
+    				if (if_block) {
+    					if_block.p(ctx, dirty);
+    				} else {
+    					if_block = create_if_block(ctx);
+    					if_block.c();
+    					if_block.m(if_block_anchor.parentNode, if_block_anchor);
+    				}
+    			} else if (if_block) {
+    				if_block.d(1);
+    				if_block = null;
+    			}
+    		},
+    		i: noop,
+    		o: noop,
+    		d(detaching) {
+    			if (detaching) detach(h3);
+    			if (detaching) detach(t1);
+    			if (if_block) if_block.d(detaching);
+    			if (detaching) detach(if_block_anchor);
+    		}
+    	};
     }
 
-    function instance($$self, $$props, $$invalidate) {
+    function instance$1($$self, $$props, $$invalidate) {
     	let { ch } = $$props;
     	let readResult;
+    	let isNotifying = false;
 
-    	async function onReadValue() {
-    		$$invalidate(0, readResult = await ch.readValue());
-    		Object.assign(window, { readResult });
+    	function onReadValue() {
+    		ch.readValue().then(readResult => {
+    			Object.assign(window, { readResult });
+    			log(decodeDataView(readResult));
+    		}).catch(log);
     	}
 
-    	async function onStartNotify() {
-    		ch.addEventListener("characteristicvaluechanged", onChValueChaged);
-    		await ch.startNotifications();
+    	async function onToggleNotify() {
+    		if (isNotifying) {
+    			ch.removeEventListener("characteristicvaluechanged", onChValueChaged);
+    			ch.stopNotifications().then(() => $$invalidate(1, isNotifying = false));
+    		} else {
+    			ch.addEventListener("characteristicvaluechanged", onChValueChaged);
+    			ch.startNotifications().then(() => $$invalidate(1, isNotifying = true));
+    		}
+    	}
+
+    	function onChValueChaged(e) {
+    		log(decodeDataView(e.target.value));
     	}
 
     	onDestroy(() => {
     		ch.removeEventListener("characteristicvaluechanged", onChValueChaged);
     	});
 
-    	let notificationLog = "";
-
-    	function textarea_input_handler() {
-    		notificationLog = this.value;
-    		$$invalidate(1, notificationLog);
-    	}
-
     	$$self.$set = $$props => {
-    		if ("ch" in $$props) $$invalidate(4, ch = $$props.ch);
+    		if ("ch" in $$props) $$invalidate(0, ch = $$props.ch);
     	};
 
-    	return [
-    		readResult,
-    		notificationLog,
-    		onReadValue,
-    		onStartNotify,
-    		ch,
-    		textarea_input_handler
-    	];
+    	return [ch, isNotifying, readResult, onReadValue, onToggleNotify];
     }
 
     class Characteristic extends SvelteComponent {
     	constructor(options) {
     		super();
-    		init(this, options, instance, create_fragment, safe_not_equal, { ch: 4 });
+    		init(this, options, instance$1, create_fragment$2, safe_not_equal, { ch: 0 });
+    	}
+    }
+
+    /* src/Footer.svelte generated by Svelte v3.23.2 */
+
+    function add_css$1() {
+    	var style = element("style");
+    	style.id = "svelte-cedavk-style";
+    	style.textContent = ".footer.svelte-cedavk{position:fixed;bottom:0px;border-top:1px solid #000;padding:10px;left:0;right:0}";
+    	append(document.head, style);
+    }
+
+    function create_fragment$3(ctx) {
+    	let div;
+
+    	return {
+    		c() {
+    			div = element("div");
+
+    			div.innerHTML = `
+  Made by
+  <a href="https://kraftwerk28.pp.ua" target="_blank">@kraftwerk28</a>`;
+
+    			attr(div, "class", "footer svelte-cedavk");
+    		},
+    		m(target, anchor) {
+    			insert(target, div, anchor);
+    		},
+    		p: noop,
+    		i: noop,
+    		o: noop,
+    		d(detaching) {
+    			if (detaching) detach(div);
+    		}
+    	};
+    }
+
+    class Footer extends SvelteComponent {
+    	constructor(options) {
+    		super();
+    		if (!document.getElementById("svelte-cedavk-style")) add_css$1();
+    		init(this, options, null, create_fragment$3, safe_not_equal, {});
     	}
     }
 
     /* src/App.svelte generated by Svelte v3.23.2 */
 
-    function add_css() {
+    function add_css$2() {
     	var style = element("style");
-    	style.id = "svelte-akmg62-style";
-    	style.textContent = ".connected.svelte-akmg62{color:rgb(0 185 0)}.connecting.svelte-akmg62{color:rgb(150 0 255)}.failed.svelte-akmg62{color:#f00}";
+    	style.id = "svelte-1917kdi-style";
+    	style.textContent = ".connected.svelte-1917kdi.svelte-1917kdi{color:rgb(0 185 0)}.connecting.svelte-1917kdi.svelte-1917kdi{color:rgb(150 0 255)}.failed.svelte-1917kdi.svelte-1917kdi{color:#f00}.double-side.svelte-1917kdi.svelte-1917kdi{display:flex}.double-side.svelte-1917kdi>div.svelte-1917kdi:nth-child(1){border-right:1px solid #000}.double-side.svelte-1917kdi>div.svelte-1917kdi{flex:1}";
     	append(document.head, style);
     }
 
-    function get_each_context(ctx, list, i) {
+    function get_each_context$1(ctx, list, i) {
     	const child_ctx = ctx.slice();
     	child_ctx[16] = list[i];
     	return child_ctx;
@@ -1864,7 +2639,7 @@
     	return child_ctx;
     }
 
-    // (123:51) {:else}
+    // (136:55) {:else}
     function create_else_block(ctx) {
     	let t;
 
@@ -1881,8 +2656,8 @@
     	};
     }
 
-    // (123:41) 
-    function create_if_block_6(ctx) {
+    // (136:45) 
+    function create_if_block_5(ctx) {
     	let t;
 
     	return {
@@ -1898,8 +2673,8 @@
     	};
     }
 
-    // (121:42) 
-    function create_if_block_5(ctx) {
+    // (134:46) 
+    function create_if_block_4(ctx) {
     	let t;
 
     	return {
@@ -1915,8 +2690,8 @@
     	};
     }
 
-    // (119:2) {#if connectState === 'disconnected'}
-    function create_if_block_4(ctx) {
+    // (132:6) {#if connectState === 'disconnected'}
+    function create_if_block_3(ctx) {
     	let t;
 
     	return {
@@ -1932,8 +2707,8 @@
     	};
     }
 
-    // (126:0) {#if serviceList.length}
-    function create_if_block_3(ctx) {
+    // (139:4) {#if serviceList.length}
+    function create_if_block_2(ctx) {
     	let select;
     	let option;
     	let t;
@@ -2015,7 +2790,7 @@
     	};
     }
 
-    // (129:4) {#each serviceList as service}
+    // (142:8) {#each serviceList as service}
     function create_each_block_1(ctx) {
     	let option;
     	let t_value = /*service*/ ctx[7].readableName + "";
@@ -2048,8 +2823,8 @@
     	};
     }
 
-    // (135:0) {#if characteristicsList.length && selectedServiceUUID}
-    function create_if_block_2(ctx) {
+    // (148:4) {#if characteristicsList.length && selectedServiceUUID}
+    function create_if_block_1(ctx) {
     	let select;
     	let option;
     	let t;
@@ -2059,14 +2834,14 @@
     	let each_blocks = [];
 
     	for (let i = 0; i < each_value.length; i += 1) {
-    		each_blocks[i] = create_each_block(get_each_context(ctx, each_value, i));
+    		each_blocks[i] = create_each_block$1(get_each_context$1(ctx, each_value, i));
     	}
 
     	return {
     		c() {
     			select = element("select");
     			option = element("option");
-    			t = text("Select characteristic...\n    ");
+    			t = text("Select characteristic...\n        ");
 
     			for (let i = 0; i < each_blocks.length; i += 1) {
     				each_blocks[i].c();
@@ -2100,12 +2875,12 @@
     				let i;
 
     				for (i = 0; i < each_value.length; i += 1) {
-    					const child_ctx = get_each_context(ctx, each_value, i);
+    					const child_ctx = get_each_context$1(ctx, each_value, i);
 
     					if (each_blocks[i]) {
     						each_blocks[i].p(child_ctx, dirty);
     					} else {
-    						each_blocks[i] = create_each_block(child_ctx);
+    						each_blocks[i] = create_each_block$1(child_ctx);
     						each_blocks[i].c();
     						each_blocks[i].m(select, null);
     					}
@@ -2131,8 +2906,8 @@
     	};
     }
 
-    // (140:4) {#each characteristicsList as ch}
-    function create_each_block(ctx) {
+    // (153:8) {#each characteristicsList as ch}
+    function create_each_block$1(ctx) {
     	let option;
     	let t_value = /*ch*/ ctx[16].readableName + "";
     	let t;
@@ -2164,8 +2939,8 @@
     	};
     }
 
-    // (147:0) {#if device && connectState === 'connected'}
-    function create_if_block_1(ctx) {
+    // (160:4) {#if device && connectState === 'connected'}
+    function create_if_block$1(ctx) {
     	let h3;
     	let t0;
     	let t1_value = /*device*/ ctx[2].name + "";
@@ -2202,188 +2977,172 @@
     	};
     }
 
-    // (163:0) {#if characteristic}
-    function create_if_block(ctx) {
-    	let characteristic_1;
-    	let current;
-    	characteristic_1 = new Characteristic({ props: { ch: /*characteristic*/ ctx[3] } });
-
-    	return {
-    		c() {
-    			create_component(characteristic_1.$$.fragment);
-    		},
-    		m(target, anchor) {
-    			mount_component(characteristic_1, target, anchor);
-    			current = true;
-    		},
-    		p(ctx, dirty) {
-    			const characteristic_1_changes = {};
-    			if (dirty & /*characteristic*/ 8) characteristic_1_changes.ch = /*characteristic*/ ctx[3];
-    			characteristic_1.$set(characteristic_1_changes);
-    		},
-    		i(local) {
-    			if (current) return;
-    			transition_in(characteristic_1.$$.fragment, local);
-    			current = true;
-    		},
-    		o(local) {
-    			transition_out(characteristic_1.$$.fragment, local);
-    			current = false;
-    		},
-    		d(detaching) {
-    			destroy_component(characteristic_1, detaching);
-    		}
-    	};
-    }
-
-    function create_fragment$1(ctx) {
-    	let h4;
-    	let t2;
+    function create_fragment$4(ctx) {
+    	let warning;
+    	let t0;
     	let h3;
+    	let t1;
+    	let t2;
     	let t3;
-    	let t4;
-    	let t5;
+    	let div2;
+    	let div0;
     	let button;
     	let button_disabled_value;
+    	let t4;
+    	let t5;
     	let t6;
+    	let br0;
     	let t7;
     	let t8;
-    	let br0;
-    	let t9;
-    	let t10;
     	let br1;
-    	let t11;
+    	let t9;
     	let span0;
-    	let t12_value = "Selected service:" + "";
-    	let t12;
-    	let t13;
+    	let t10_value = "Selected service:" + "";
+    	let t10;
+    	let t11;
 
-    	let t14_value = (/*selectedServiceUUID*/ ctx[5]
+    	let t12_value = (/*selectedServiceUUID*/ ctx[5]
     	? `0x${/*selectedServiceUUID*/ ctx[5].toString("16")}`
     	: "none") + "";
 
-    	let t14;
-    	let t15;
+    	let t12;
+    	let t13;
     	let br2;
-    	let t16;
+    	let t14;
     	let span1;
-    	let t17_value = "Selected characteristic:" + "";
-    	let t17;
-    	let t18;
+    	let t15_value = "Selected characteristic:" + "";
+    	let t15;
+    	let t16;
 
-    	let t19_value = (/*selectedCharacteristicUUID*/ ctx[6]
+    	let t17_value = (/*selectedCharacteristicUUID*/ ctx[6]
     	? `0x${/*selectedCharacteristicUUID*/ ctx[6].toString("16")}`
     	: "none") + "";
 
+    	let t17;
+    	let t18;
+    	let div1;
+    	let characteristic_1;
     	let t19;
+    	let hr;
     	let t20;
-    	let br3;
+    	let messagelog;
     	let t21;
-    	let if_block4_anchor;
+    	let footer;
     	let current;
     	let mounted;
     	let dispose;
+    	warning = new Warning({});
 
     	function select_block_type(ctx, dirty) {
-    		if (/*connectState*/ ctx[4] === "disconnected") return create_if_block_4;
-    		if (/*connectState*/ ctx[4] === "connecting") return create_if_block_5;
-    		if (/*connectState*/ ctx[4] === "connected") return create_if_block_6;
+    		if (/*connectState*/ ctx[4] === "disconnected") return create_if_block_3;
+    		if (/*connectState*/ ctx[4] === "connecting") return create_if_block_4;
+    		if (/*connectState*/ ctx[4] === "connected") return create_if_block_5;
     		return create_else_block;
     	}
 
     	let current_block_type = select_block_type(ctx);
     	let if_block0 = current_block_type(ctx);
-    	let if_block1 = /*serviceList*/ ctx[0].length && create_if_block_3(ctx);
-    	let if_block2 = /*characteristicsList*/ ctx[1].length && /*selectedServiceUUID*/ ctx[5] && create_if_block_2(ctx);
-    	let if_block3 = /*device*/ ctx[2] && /*connectState*/ ctx[4] === "connected" && create_if_block_1(ctx);
-    	let if_block4 = /*characteristic*/ ctx[3] && create_if_block(ctx);
+    	let if_block1 = /*serviceList*/ ctx[0].length && create_if_block_2(ctx);
+    	let if_block2 = /*characteristicsList*/ ctx[1].length && /*selectedServiceUUID*/ ctx[5] && create_if_block_1(ctx);
+    	let if_block3 = /*device*/ ctx[2] && /*connectState*/ ctx[4] === "connected" && create_if_block$1(ctx);
+    	characteristic_1 = new Characteristic({ props: { ch: /*characteristic*/ ctx[3] } });
+    	messagelog = new MessageLog({});
+    	footer = new Footer({});
 
     	return {
     		c() {
-    			h4 = element("h4");
-
-    			h4.innerHTML = `
-  Warning! Check if your browser
-  <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API">
-    supports BLE API
-  </a>`;
-
-    			t2 = space();
+    			create_component(warning.$$.fragment);
+    			t0 = space();
     			h3 = element("h3");
-    			t3 = text("Status: ");
-    			t4 = text(/*connectState*/ ctx[4]);
-    			t5 = space();
+    			t1 = text("Status: ");
+    			t2 = text(/*connectState*/ ctx[4]);
+    			t3 = space();
+    			div2 = element("div");
+    			div0 = element("div");
     			button = element("button");
     			if_block0.c();
-    			t6 = space();
+    			t4 = space();
     			if (if_block1) if_block1.c();
-    			t7 = space();
+    			t5 = space();
     			if (if_block2) if_block2.c();
-    			t8 = space();
+    			t6 = space();
     			br0 = element("br");
-    			t9 = space();
+    			t7 = space();
     			if (if_block3) if_block3.c();
-    			t10 = space();
+    			t8 = space();
     			br1 = element("br");
-    			t11 = space();
+    			t9 = space();
     			span0 = element("span");
+    			t10 = text(t10_value);
+    			t11 = space();
     			t12 = text(t12_value);
     			t13 = space();
-    			t14 = text(t14_value);
-    			t15 = space();
     			br2 = element("br");
-    			t16 = space();
+    			t14 = space();
     			span1 = element("span");
+    			t15 = text(t15_value);
+    			t16 = space();
     			t17 = text(t17_value);
     			t18 = space();
-    			t19 = text(t19_value);
+    			div1 = element("div");
+    			create_component(characteristic_1.$$.fragment);
+    			t19 = space();
+    			hr = element("hr");
     			t20 = space();
-    			br3 = element("br");
+    			create_component(messagelog.$$.fragment);
     			t21 = space();
-    			if (if_block4) if_block4.c();
-    			if_block4_anchor = empty();
-    			attr(h3, "class", "svelte-akmg62");
+    			create_component(footer.$$.fragment);
+    			attr(h3, "class", "svelte-1917kdi");
     			toggle_class(h3, "connected", /*connectState*/ ctx[4] === "connected");
     			toggle_class(h3, "connecting", /*connectState*/ ctx[4] === "connecting");
     			toggle_class(h3, "failed", /*connectState*/ ctx[4] === "failed");
     			button.disabled = button_disabled_value = /*connectState*/ ctx[4] === "connecting";
+    			attr(div0, "class", "svelte-1917kdi");
+    			attr(div1, "class", "svelte-1917kdi");
+    			attr(div2, "class", "double-side svelte-1917kdi");
     		},
     		m(target, anchor) {
-    			insert(target, h4, anchor);
-    			insert(target, t2, anchor);
+    			mount_component(warning, target, anchor);
+    			insert(target, t0, anchor);
     			insert(target, h3, anchor);
-    			append(h3, t3);
-    			append(h3, t4);
-    			insert(target, t5, anchor);
-    			insert(target, button, anchor);
+    			append(h3, t1);
+    			append(h3, t2);
+    			insert(target, t3, anchor);
+    			insert(target, div2, anchor);
+    			append(div2, div0);
+    			append(div0, button);
     			if_block0.m(button, null);
-    			insert(target, t6, anchor);
-    			if (if_block1) if_block1.m(target, anchor);
-    			insert(target, t7, anchor);
-    			if (if_block2) if_block2.m(target, anchor);
-    			insert(target, t8, anchor);
-    			insert(target, br0, anchor);
-    			insert(target, t9, anchor);
-    			if (if_block3) if_block3.m(target, anchor);
-    			insert(target, t10, anchor);
-    			insert(target, br1, anchor);
-    			insert(target, t11, anchor);
-    			insert(target, span0, anchor);
+    			append(div0, t4);
+    			if (if_block1) if_block1.m(div0, null);
+    			append(div0, t5);
+    			if (if_block2) if_block2.m(div0, null);
+    			append(div0, t6);
+    			append(div0, br0);
+    			append(div0, t7);
+    			if (if_block3) if_block3.m(div0, null);
+    			append(div0, t8);
+    			append(div0, br1);
+    			append(div0, t9);
+    			append(div0, span0);
+    			append(span0, t10);
+    			append(span0, t11);
     			append(span0, t12);
-    			append(span0, t13);
-    			append(span0, t14);
-    			insert(target, t15, anchor);
-    			insert(target, br2, anchor);
-    			insert(target, t16, anchor);
-    			insert(target, span1, anchor);
+    			append(div0, t13);
+    			append(div0, br2);
+    			append(div0, t14);
+    			append(div0, span1);
+    			append(span1, t15);
+    			append(span1, t16);
     			append(span1, t17);
-    			append(span1, t18);
-    			append(span1, t19);
+    			append(div2, t18);
+    			append(div2, div1);
+    			mount_component(characteristic_1, div1, null);
+    			insert(target, t19, anchor);
+    			insert(target, hr, anchor);
     			insert(target, t20, anchor);
-    			insert(target, br3, anchor);
+    			mount_component(messagelog, target, anchor);
     			insert(target, t21, anchor);
-    			if (if_block4) if_block4.m(target, anchor);
-    			insert(target, if_block4_anchor, anchor);
+    			mount_component(footer, target, anchor);
     			current = true;
 
     			if (!mounted) {
@@ -2392,7 +3151,7 @@
     			}
     		},
     		p(ctx, [dirty]) {
-    			if (!current || dirty & /*connectState*/ 16) set_data(t4, /*connectState*/ ctx[4]);
+    			if (!current || dirty & /*connectState*/ 16) set_data(t2, /*connectState*/ ctx[4]);
 
     			if (dirty & /*connectState*/ 16) {
     				toggle_class(h3, "connected", /*connectState*/ ctx[4] === "connected");
@@ -2424,9 +3183,9 @@
     				if (if_block1) {
     					if_block1.p(ctx, dirty);
     				} else {
-    					if_block1 = create_if_block_3(ctx);
+    					if_block1 = create_if_block_2(ctx);
     					if_block1.c();
-    					if_block1.m(t7.parentNode, t7);
+    					if_block1.m(div0, t5);
     				}
     			} else if (if_block1) {
     				if_block1.d(1);
@@ -2437,9 +3196,9 @@
     				if (if_block2) {
     					if_block2.p(ctx, dirty);
     				} else {
-    					if_block2 = create_if_block_2(ctx);
+    					if_block2 = create_if_block_1(ctx);
     					if_block2.c();
-    					if_block2.m(t8.parentNode, t8);
+    					if_block2.m(div0, t6);
     				}
     			} else if (if_block2) {
     				if_block2.d(1);
@@ -2450,90 +3209,66 @@
     				if (if_block3) {
     					if_block3.p(ctx, dirty);
     				} else {
-    					if_block3 = create_if_block_1(ctx);
+    					if_block3 = create_if_block$1(ctx);
     					if_block3.c();
-    					if_block3.m(t10.parentNode, t10);
+    					if_block3.m(div0, t8);
     				}
     			} else if (if_block3) {
     				if_block3.d(1);
     				if_block3 = null;
     			}
 
-    			if ((!current || dirty & /*selectedServiceUUID*/ 32) && t14_value !== (t14_value = (/*selectedServiceUUID*/ ctx[5]
+    			if ((!current || dirty & /*selectedServiceUUID*/ 32) && t12_value !== (t12_value = (/*selectedServiceUUID*/ ctx[5]
     			? `0x${/*selectedServiceUUID*/ ctx[5].toString("16")}`
-    			: "none") + "")) set_data(t14, t14_value);
+    			: "none") + "")) set_data(t12, t12_value);
 
-    			if ((!current || dirty & /*selectedCharacteristicUUID*/ 64) && t19_value !== (t19_value = (/*selectedCharacteristicUUID*/ ctx[6]
+    			if ((!current || dirty & /*selectedCharacteristicUUID*/ 64) && t17_value !== (t17_value = (/*selectedCharacteristicUUID*/ ctx[6]
     			? `0x${/*selectedCharacteristicUUID*/ ctx[6].toString("16")}`
-    			: "none") + "")) set_data(t19, t19_value);
+    			: "none") + "")) set_data(t17, t17_value);
 
-    			if (/*characteristic*/ ctx[3]) {
-    				if (if_block4) {
-    					if_block4.p(ctx, dirty);
-
-    					if (dirty & /*characteristic*/ 8) {
-    						transition_in(if_block4, 1);
-    					}
-    				} else {
-    					if_block4 = create_if_block(ctx);
-    					if_block4.c();
-    					transition_in(if_block4, 1);
-    					if_block4.m(if_block4_anchor.parentNode, if_block4_anchor);
-    				}
-    			} else if (if_block4) {
-    				group_outros();
-
-    				transition_out(if_block4, 1, 1, () => {
-    					if_block4 = null;
-    				});
-
-    				check_outros();
-    			}
+    			const characteristic_1_changes = {};
+    			if (dirty & /*characteristic*/ 8) characteristic_1_changes.ch = /*characteristic*/ ctx[3];
+    			characteristic_1.$set(characteristic_1_changes);
     		},
     		i(local) {
     			if (current) return;
-    			transition_in(if_block4);
+    			transition_in(warning.$$.fragment, local);
+    			transition_in(characteristic_1.$$.fragment, local);
+    			transition_in(messagelog.$$.fragment, local);
+    			transition_in(footer.$$.fragment, local);
     			current = true;
     		},
     		o(local) {
-    			transition_out(if_block4);
+    			transition_out(warning.$$.fragment, local);
+    			transition_out(characteristic_1.$$.fragment, local);
+    			transition_out(messagelog.$$.fragment, local);
+    			transition_out(footer.$$.fragment, local);
     			current = false;
     		},
     		d(detaching) {
-    			if (detaching) detach(h4);
-    			if (detaching) detach(t2);
+    			destroy_component(warning, detaching);
+    			if (detaching) detach(t0);
     			if (detaching) detach(h3);
-    			if (detaching) detach(t5);
-    			if (detaching) detach(button);
+    			if (detaching) detach(t3);
+    			if (detaching) detach(div2);
     			if_block0.d();
-    			if (detaching) detach(t6);
-    			if (if_block1) if_block1.d(detaching);
-    			if (detaching) detach(t7);
-    			if (if_block2) if_block2.d(detaching);
-    			if (detaching) detach(t8);
-    			if (detaching) detach(br0);
-    			if (detaching) detach(t9);
-    			if (if_block3) if_block3.d(detaching);
-    			if (detaching) detach(t10);
-    			if (detaching) detach(br1);
-    			if (detaching) detach(t11);
-    			if (detaching) detach(span0);
-    			if (detaching) detach(t15);
-    			if (detaching) detach(br2);
-    			if (detaching) detach(t16);
-    			if (detaching) detach(span1);
+    			if (if_block1) if_block1.d();
+    			if (if_block2) if_block2.d();
+    			if (if_block3) if_block3.d();
+    			destroy_component(characteristic_1);
+    			if (detaching) detach(t19);
+    			if (detaching) detach(hr);
     			if (detaching) detach(t20);
-    			if (detaching) detach(br3);
+    			destroy_component(messagelog, detaching);
     			if (detaching) detach(t21);
-    			if (if_block4) if_block4.d(detaching);
-    			if (detaching) detach(if_block4_anchor);
+    			destroy_component(footer, detaching);
     			mounted = false;
     			dispose();
     		}
     	};
     }
 
-    function instance$1($$self, $$props, $$invalidate) {
+    function instance$2($$self, $$props, $$invalidate) {
     	let serviceList = [];
     	let characteristicsList = [];
     	let device;
@@ -2574,13 +3309,18 @@
     				device.addEventListener("gattserverdisconnected", reset);
     				return interact();
     			},
-    			() => {
+    			err => {
+    				log(err);
     				reset();
     			}
     		);
     	}
 
     	function manipulateConnection() {
+    		if (!navigator.bluetooth) {
+    			log("Your device doesn't support BLE API.", "error");
+    		}
+
     		if (connectState === "disconnected") {
     			reqConnect();
     		} else if (connectState === "connected") {
@@ -2615,7 +3355,7 @@
     		if ($$self.$$.dirty & /*gattServer, selectedServiceUUID*/ 2080) {
     			 {
     				if (gattServer && selectedServiceUUID) {
-    					gattServer.getPrimaryService(selectedServiceUUID).then(s => $$invalidate(7, service = s));
+    					gattServer.getPrimaryService(selectedServiceUUID).then(s => $$invalidate(7, service = s)).catch(log);
     				}
     			}
     		}
@@ -2623,7 +3363,7 @@
     		if ($$self.$$.dirty & /*gattServer, service, selectedCharacteristicUUID*/ 2240) {
     			 {
     				if (gattServer && service && selectedCharacteristicUUID) {
-    					service.getCharacteristic(selectedCharacteristicUUID).then(ch => $$invalidate(3, characteristic = ch));
+    					service.getCharacteristic(selectedCharacteristicUUID).then(ch => $$invalidate(3, characteristic = ch)).catch(log);
     				}
     			}
     		}
@@ -2647,8 +3387,8 @@
     class App extends SvelteComponent {
     	constructor(options) {
     		super();
-    		if (!document.getElementById("svelte-akmg62-style")) add_css();
-    		init(this, options, instance$1, create_fragment$1, safe_not_equal, {});
+    		if (!document.getElementById("svelte-1917kdi-style")) add_css$2();
+    		init(this, options, instance$2, create_fragment$4, safe_not_equal, {});
     	}
     }
 
@@ -2657,5 +3397,7 @@
         target: document.querySelector('#root'),
       });
     });
+
+    // Must register serviceWorker...
 
 }());
