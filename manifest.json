@@ -1,0 +1,11 @@
+{
+  "background_color": "#333",
+  "name": "Bluetooth demo",
+  "short_name": "BT Demo",
+  "icons": [
+    { "src": "icons/bt.svg" }
+  ],
+  "display": "minimal-ui",
+  "start_url": "/",
+  "theme_color": "#FFFFFF"
+}
