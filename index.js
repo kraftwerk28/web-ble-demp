@@ -2580,8 +2580,8 @@
 
     function add_css$1() {
     	var style = element("style");
-    	style.id = "svelte-cedavk-style";
-    	style.textContent = ".footer.svelte-cedavk{position:fixed;bottom:0px;border-top:1px solid #000;padding:10px;left:0;right:0}";
+    	style.id = "svelte-16mu58q-style";
+    	style.textContent = ".footer.svelte-16mu58q{background:#FFF;position:fixed;bottom:0px;border-top:1px solid #000;padding:10px;left:0;right:0}";
     	append(document.head, style);
     }
 
@@ -2596,7 +2596,7 @@
   Made by
   <a href="https://kraftwerk28.pp.ua" target="_blank">@kraftwerk28</a>`;
 
-    			attr(div, "class", "footer svelte-cedavk");
+    			attr(div, "class", "footer svelte-16mu58q");
     		},
     		m(target, anchor) {
     			insert(target, div, anchor);
@@ -2613,7 +2613,7 @@
     class Footer extends SvelteComponent {
     	constructor(options) {
     		super();
-    		if (!document.getElementById("svelte-cedavk-style")) add_css$1();
+    		if (!document.getElementById("svelte-16mu58q-style")) add_css$1();
     		init(this, options, null, create_fragment$3, safe_not_equal, {});
     	}
     }
