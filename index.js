@@ -2622,8 +2622,8 @@
 
     function add_css$2() {
     	var style = element("style");
-    	style.id = "svelte-1917kdi-style";
-    	style.textContent = ".connected.svelte-1917kdi.svelte-1917kdi{color:rgb(0 185 0)}.connecting.svelte-1917kdi.svelte-1917kdi{color:rgb(150 0 255)}.failed.svelte-1917kdi.svelte-1917kdi{color:#f00}.double-side.svelte-1917kdi.svelte-1917kdi{display:flex}.double-side.svelte-1917kdi>div.svelte-1917kdi:nth-child(1){border-right:1px solid #000}.double-side.svelte-1917kdi>div.svelte-1917kdi{flex:1}";
+    	style.id = "svelte-1wuktin-style";
+    	style.textContent = ".connected.svelte-1wuktin.svelte-1wuktin{color:rgb(0 185 0)}.connecting.svelte-1wuktin.svelte-1wuktin{color:rgb(150 0 255)}.failed.svelte-1wuktin.svelte-1wuktin{color:#f00}.double-side.svelte-1wuktin.svelte-1wuktin{display:flex;flex-flow:row wrap}.double-side.svelte-1wuktin>div.svelte-1wuktin:nth-child(1){border-right:1px solid #000;border-bottom:none}@media screen and (max-width: 800px){.double-side.svelte-1wuktin>div.svelte-1wuktin:nth-child(1){border-right:none;border-bottom:1px solid #000}}.double-side.svelte-1wuktin>div.svelte-1wuktin{flex:1 1 400px}";
     	append(document.head, style);
     }
 
@@ -2639,7 +2639,7 @@
     	return child_ctx;
     }
 
-    // (136:55) {:else}
+    // (144:55) {:else}
     function create_else_block(ctx) {
     	let t;
 
@@ -2656,7 +2656,7 @@
     	};
     }
 
-    // (136:45) 
+    // (144:45) 
     function create_if_block_5(ctx) {
     	let t;
 
@@ -2673,7 +2673,7 @@
     	};
     }
 
-    // (134:46) 
+    // (142:46) 
     function create_if_block_4(ctx) {
     	let t;
 
@@ -2690,7 +2690,7 @@
     	};
     }
 
-    // (132:6) {#if connectState === 'disconnected'}
+    // (140:6) {#if connectState === 'disconnected'}
     function create_if_block_3(ctx) {
     	let t;
 
@@ -2707,7 +2707,7 @@
     	};
     }
 
-    // (139:4) {#if serviceList.length}
+    // (147:4) {#if serviceList.length}
     function create_if_block_2(ctx) {
     	let select;
     	let option;
@@ -2790,7 +2790,7 @@
     	};
     }
 
-    // (142:8) {#each serviceList as service}
+    // (150:8) {#each serviceList as service}
     function create_each_block_1(ctx) {
     	let option;
     	let t_value = /*service*/ ctx[7].readableName + "";
@@ -2823,7 +2823,7 @@
     	};
     }
 
-    // (148:4) {#if characteristicsList.length && selectedServiceUUID}
+    // (156:4) {#if characteristicsList.length && selectedServiceUUID}
     function create_if_block_1(ctx) {
     	let select;
     	let option;
@@ -2906,7 +2906,7 @@
     	};
     }
 
-    // (153:8) {#each characteristicsList as ch}
+    // (161:8) {#each characteristicsList as ch}
     function create_each_block$1(ctx) {
     	let option;
     	let t_value = /*ch*/ ctx[16].readableName + "";
@@ -2939,7 +2939,7 @@
     	};
     }
 
-    // (160:4) {#if device && connectState === 'connected'}
+    // (168:4) {#if device && connectState === 'connected'}
     function create_if_block$1(ctx) {
     	let h3;
     	let t0;
@@ -3092,14 +3092,14 @@
     			create_component(messagelog.$$.fragment);
     			t21 = space();
     			create_component(footer.$$.fragment);
-    			attr(h3, "class", "svelte-1917kdi");
+    			attr(h3, "class", "svelte-1wuktin");
     			toggle_class(h3, "connected", /*connectState*/ ctx[4] === "connected");
     			toggle_class(h3, "connecting", /*connectState*/ ctx[4] === "connecting");
     			toggle_class(h3, "failed", /*connectState*/ ctx[4] === "failed");
     			button.disabled = button_disabled_value = /*connectState*/ ctx[4] === "connecting";
-    			attr(div0, "class", "svelte-1917kdi");
-    			attr(div1, "class", "svelte-1917kdi");
-    			attr(div2, "class", "double-side svelte-1917kdi");
+    			attr(div0, "class", "svelte-1wuktin");
+    			attr(div1, "class", "svelte-1wuktin");
+    			attr(div2, "class", "double-side svelte-1wuktin");
     		},
     		m(target, anchor) {
     			mount_component(warning, target, anchor);
@@ -3387,7 +3387,7 @@
     class App extends SvelteComponent {
     	constructor(options) {
     		super();
-    		if (!document.getElementById("svelte-1917kdi-style")) add_css$2();
+    		if (!document.getElementById("svelte-1wuktin-style")) add_css$2();
     		init(this, options, instance$2, create_fragment$4, safe_not_equal, {});
     	}
     }
