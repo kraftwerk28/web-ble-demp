@@ -1,5 +1,6 @@
 <style>
   .footer {
+    background: #FFF;
     position: fixed;
     bottom: 0px;
     border-top: 1px solid #000;
