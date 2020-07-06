@@ -1755,7 +1755,7 @@
 
     function get_each_context(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[15] = list[i];
+    	child_ctx[16] = list[i];
     	return child_ctx;
     }
 
@@ -1765,7 +1765,7 @@
     	return child_ctx;
     }
 
-    // (126:51) {:else}
+    // (140:51) {:else}
     function create_else_block(ctx) {
     	let t;
 
@@ -1782,7 +1782,7 @@
     	};
     }
 
-    // (126:41) 
+    // (140:41) 
     function create_if_block_6(ctx) {
     	let t;
 
@@ -1799,7 +1799,7 @@
     	};
     }
 
-    // (124:42) 
+    // (138:42) 
     function create_if_block_5(ctx) {
     	let t;
 
@@ -1816,7 +1816,7 @@
     	};
     }
 
-    // (122:2) {#if connectState === 'disconnected'}
+    // (136:2) {#if connectState === 'disconnected'}
     function create_if_block_4(ctx) {
     	let t;
 
@@ -1833,7 +1833,7 @@
     	};
     }
 
-    // (129:0) {#if serviceList.length}
+    // (143:0) {#if serviceList.length}
     function create_if_block_3(ctx) {
     	let select;
     	let option;
@@ -1916,7 +1916,7 @@
     	};
     }
 
-    // (132:4) {#each serviceList as service}
+    // (146:4) {#each serviceList as service}
     function create_each_block_1(ctx) {
     	let option;
     	let t_value = /*service*/ ctx[7].readableName + "";
@@ -1949,7 +1949,7 @@
     	};
     }
 
-    // (138:0) {#if characteristicsList.length && selectedServiceUUID}
+    // (152:0) {#if characteristicsList.length && selectedServiceUUID}
     function create_if_block_2(ctx) {
     	let select;
     	let option;
@@ -2032,10 +2032,10 @@
     	};
     }
 
-    // (143:4) {#each characteristicsList as ch}
+    // (157:4) {#each characteristicsList as ch}
     function create_each_block(ctx) {
     	let option;
-    	let t_value = /*ch*/ ctx[15].readableName + "";
+    	let t_value = /*ch*/ ctx[16].readableName + "";
     	let t;
     	let option_value_value;
 
@@ -2043,7 +2043,7 @@
     		c() {
     			option = element("option");
     			t = text(t_value);
-    			option.__value = option_value_value = /*ch*/ ctx[15].uuid;
+    			option.__value = option_value_value = /*ch*/ ctx[16].uuid;
     			option.value = option.__value;
     		},
     		m(target, anchor) {
@@ -2051,9 +2051,9 @@
     			append(option, t);
     		},
     		p(ctx, dirty) {
-    			if (dirty & /*characteristicsList*/ 2 && t_value !== (t_value = /*ch*/ ctx[15].readableName + "")) set_data(t, t_value);
+    			if (dirty & /*characteristicsList*/ 2 && t_value !== (t_value = /*ch*/ ctx[16].readableName + "")) set_data(t, t_value);
 
-    			if (dirty & /*characteristicsList*/ 2 && option_value_value !== (option_value_value = /*ch*/ ctx[15].uuid)) {
+    			if (dirty & /*characteristicsList*/ 2 && option_value_value !== (option_value_value = /*ch*/ ctx[16].uuid)) {
     				option.__value = option_value_value;
     			}
 
@@ -2065,7 +2065,7 @@
     	};
     }
 
-    // (150:0) {#if device && connectState === 'connected'}
+    // (164:0) {#if device && connectState === 'connected'}
     function create_if_block_1(ctx) {
     	let h3;
     	let t0;
@@ -2103,7 +2103,7 @@
     	};
     }
 
-    // (166:0) {#if characteristic}
+    // (180:0) {#if characteristic}
     function create_if_block(ctx) {
     	let characteristic_1;
     	let current;
@@ -2138,46 +2138,48 @@
     }
 
     function create_fragment$1(ctx) {
-    	let h3;
-    	let t0;
-    	let t1;
+    	let h4;
     	let t2;
-    	let button;
-    	let button_disabled_value;
+    	let h3;
     	let t3;
     	let t4;
     	let t5;
-    	let br0;
+    	let button;
+    	let button_disabled_value;
     	let t6;
     	let t7;
-    	let br1;
     	let t8;
-    	let span0;
-    	let t9_value = "Selected service:" + "";
+    	let br0;
     	let t9;
     	let t10;
+    	let br1;
+    	let t11;
+    	let span0;
+    	let t12_value = "Selected service:" + "";
+    	let t12;
+    	let t13;
 
-    	let t11_value = (/*selectedServiceUUID*/ ctx[5]
+    	let t14_value = (/*selectedServiceUUID*/ ctx[5]
     	? `0x${/*selectedServiceUUID*/ ctx[5].toString("16")}`
     	: "none") + "";
 
-    	let t11;
-    	let t12;
-    	let br2;
-    	let t13;
-    	let span1;
-    	let t14_value = "Selected characteristic:" + "";
     	let t14;
     	let t15;
+    	let br2;
+    	let t16;
+    	let span1;
+    	let t17_value = "Selected characteristic:" + "";
+    	let t17;
+    	let t18;
 
-    	let t16_value = (/*selectedCharacteristicUUID*/ ctx[6]
+    	let t19_value = (/*selectedCharacteristicUUID*/ ctx[6]
     	? `0x${/*selectedCharacteristicUUID*/ ctx[6].toString("16")}`
     	: "none") + "";
 
-    	let t16;
-    	let t17;
+    	let t19;
+    	let t20;
     	let br3;
-    	let t18;
+    	let t21;
     	let if_block4_anchor;
     	let current;
     	let mounted;
@@ -2199,37 +2201,46 @@
 
     	return {
     		c() {
-    			h3 = element("h3");
-    			t0 = text("Status: ");
-    			t1 = text(/*connectState*/ ctx[4]);
+    			h4 = element("h4");
+
+    			h4.innerHTML = `
+  Warning! Check if your browser
+  <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API">
+    supports BLE API
+  </a>`;
+
     			t2 = space();
+    			h3 = element("h3");
+    			t3 = text("Status: ");
+    			t4 = text(/*connectState*/ ctx[4]);
+    			t5 = space();
     			button = element("button");
     			if_block0.c();
-    			t3 = space();
-    			if (if_block1) if_block1.c();
-    			t4 = space();
-    			if (if_block2) if_block2.c();
-    			t5 = space();
-    			br0 = element("br");
     			t6 = space();
-    			if (if_block3) if_block3.c();
+    			if (if_block1) if_block1.c();
     			t7 = space();
-    			br1 = element("br");
+    			if (if_block2) if_block2.c();
     			t8 = space();
-    			span0 = element("span");
-    			t9 = text(t9_value);
+    			br0 = element("br");
+    			t9 = space();
+    			if (if_block3) if_block3.c();
     			t10 = space();
-    			t11 = text(t11_value);
-    			t12 = space();
-    			br2 = element("br");
+    			br1 = element("br");
+    			t11 = space();
+    			span0 = element("span");
+    			t12 = text(t12_value);
     			t13 = space();
-    			span1 = element("span");
     			t14 = text(t14_value);
     			t15 = space();
-    			t16 = text(t16_value);
-    			t17 = space();
-    			br3 = element("br");
+    			br2 = element("br");
+    			t16 = space();
+    			span1 = element("span");
+    			t17 = text(t17_value);
     			t18 = space();
+    			t19 = text(t19_value);
+    			t20 = space();
+    			br3 = element("br");
+    			t21 = space();
     			if (if_block4) if_block4.c();
     			if_block4_anchor = empty();
     			attr(h3, "class", "svelte-akmg62");
@@ -2239,37 +2250,39 @@
     			button.disabled = button_disabled_value = /*connectState*/ ctx[4] === "connecting";
     		},
     		m(target, anchor) {
-    			insert(target, h3, anchor);
-    			append(h3, t0);
-    			append(h3, t1);
+    			insert(target, h4, anchor);
     			insert(target, t2, anchor);
+    			insert(target, h3, anchor);
+    			append(h3, t3);
+    			append(h3, t4);
+    			insert(target, t5, anchor);
     			insert(target, button, anchor);
     			if_block0.m(button, null);
-    			insert(target, t3, anchor);
-    			if (if_block1) if_block1.m(target, anchor);
-    			insert(target, t4, anchor);
-    			if (if_block2) if_block2.m(target, anchor);
-    			insert(target, t5, anchor);
-    			insert(target, br0, anchor);
     			insert(target, t6, anchor);
-    			if (if_block3) if_block3.m(target, anchor);
+    			if (if_block1) if_block1.m(target, anchor);
     			insert(target, t7, anchor);
-    			insert(target, br1, anchor);
+    			if (if_block2) if_block2.m(target, anchor);
     			insert(target, t8, anchor);
+    			insert(target, br0, anchor);
+    			insert(target, t9, anchor);
+    			if (if_block3) if_block3.m(target, anchor);
+    			insert(target, t10, anchor);
+    			insert(target, br1, anchor);
+    			insert(target, t11, anchor);
     			insert(target, span0, anchor);
-    			append(span0, t9);
-    			append(span0, t10);
-    			append(span0, t11);
-    			insert(target, t12, anchor);
+    			append(span0, t12);
+    			append(span0, t13);
+    			append(span0, t14);
+    			insert(target, t15, anchor);
     			insert(target, br2, anchor);
-    			insert(target, t13, anchor);
+    			insert(target, t16, anchor);
     			insert(target, span1, anchor);
-    			append(span1, t14);
-    			append(span1, t15);
-    			append(span1, t16);
-    			insert(target, t17, anchor);
+    			append(span1, t17);
+    			append(span1, t18);
+    			append(span1, t19);
+    			insert(target, t20, anchor);
     			insert(target, br3, anchor);
-    			insert(target, t18, anchor);
+    			insert(target, t21, anchor);
     			if (if_block4) if_block4.m(target, anchor);
     			insert(target, if_block4_anchor, anchor);
     			current = true;
@@ -2280,7 +2293,7 @@
     			}
     		},
     		p(ctx, [dirty]) {
-    			if (!current || dirty & /*connectState*/ 16) set_data(t1, /*connectState*/ ctx[4]);
+    			if (!current || dirty & /*connectState*/ 16) set_data(t4, /*connectState*/ ctx[4]);
 
     			if (dirty & /*connectState*/ 16) {
     				toggle_class(h3, "connected", /*connectState*/ ctx[4] === "connected");
@@ -2314,7 +2327,7 @@
     				} else {
     					if_block1 = create_if_block_3(ctx);
     					if_block1.c();
-    					if_block1.m(t4.parentNode, t4);
+    					if_block1.m(t7.parentNode, t7);
     				}
     			} else if (if_block1) {
     				if_block1.d(1);
@@ -2327,7 +2340,7 @@
     				} else {
     					if_block2 = create_if_block_2(ctx);
     					if_block2.c();
-    					if_block2.m(t5.parentNode, t5);
+    					if_block2.m(t8.parentNode, t8);
     				}
     			} else if (if_block2) {
     				if_block2.d(1);
@@ -2340,20 +2353,20 @@
     				} else {
     					if_block3 = create_if_block_1(ctx);
     					if_block3.c();
-    					if_block3.m(t7.parentNode, t7);
+    					if_block3.m(t10.parentNode, t10);
     				}
     			} else if (if_block3) {
     				if_block3.d(1);
     				if_block3 = null;
     			}
 
-    			if ((!current || dirty & /*selectedServiceUUID*/ 32) && t11_value !== (t11_value = (/*selectedServiceUUID*/ ctx[5]
+    			if ((!current || dirty & /*selectedServiceUUID*/ 32) && t14_value !== (t14_value = (/*selectedServiceUUID*/ ctx[5]
     			? `0x${/*selectedServiceUUID*/ ctx[5].toString("16")}`
-    			: "none") + "")) set_data(t11, t11_value);
+    			: "none") + "")) set_data(t14, t14_value);
 
-    			if ((!current || dirty & /*selectedCharacteristicUUID*/ 64) && t16_value !== (t16_value = (/*selectedCharacteristicUUID*/ ctx[6]
+    			if ((!current || dirty & /*selectedCharacteristicUUID*/ 64) && t19_value !== (t19_value = (/*selectedCharacteristicUUID*/ ctx[6]
     			? `0x${/*selectedCharacteristicUUID*/ ctx[6].toString("16")}`
-    			: "none") + "")) set_data(t16, t16_value);
+    			: "none") + "")) set_data(t19, t19_value);
 
     			if (/*characteristic*/ ctx[3]) {
     				if (if_block4) {
@@ -2388,29 +2401,31 @@
     			current = false;
     		},
     		d(detaching) {
-    			if (detaching) detach(h3);
+    			if (detaching) detach(h4);
     			if (detaching) detach(t2);
+    			if (detaching) detach(h3);
+    			if (detaching) detach(t5);
     			if (detaching) detach(button);
     			if_block0.d();
-    			if (detaching) detach(t3);
-    			if (if_block1) if_block1.d(detaching);
-    			if (detaching) detach(t4);
-    			if (if_block2) if_block2.d(detaching);
-    			if (detaching) detach(t5);
-    			if (detaching) detach(br0);
     			if (detaching) detach(t6);
-    			if (if_block3) if_block3.d(detaching);
+    			if (if_block1) if_block1.d(detaching);
     			if (detaching) detach(t7);
-    			if (detaching) detach(br1);
+    			if (if_block2) if_block2.d(detaching);
     			if (detaching) detach(t8);
+    			if (detaching) detach(br0);
+    			if (detaching) detach(t9);
+    			if (if_block3) if_block3.d(detaching);
+    			if (detaching) detach(t10);
+    			if (detaching) detach(br1);
+    			if (detaching) detach(t11);
     			if (detaching) detach(span0);
-    			if (detaching) detach(t12);
+    			if (detaching) detach(t15);
     			if (detaching) detach(br2);
-    			if (detaching) detach(t13);
+    			if (detaching) detach(t16);
     			if (detaching) detach(span1);
-    			if (detaching) detach(t17);
+    			if (detaching) detach(t20);
     			if (detaching) detach(br3);
-    			if (detaching) detach(t18);
+    			if (detaching) detach(t21);
     			if (if_block4) if_block4.d(detaching);
     			if (detaching) detach(if_block4_anchor);
     			mounted = false;
@@ -2457,11 +2472,11 @@
     				console.log("Device:", d);
     				$$invalidate(2, device = d);
     				$$invalidate(4, connectState = "connecting");
-    				device.addEventListener("gattserverdisconnected", () => $$invalidate(4, connectState = "disconnected"));
+    				device.addEventListener("gattserverdisconnected", reset);
     				return interact();
     			},
     			() => {
-    				$$invalidate(4, connectState = "failed");
+    				reset();
     			}
     		);
     	}
@@ -2471,10 +2486,18 @@
     			reqConnect();
     		} else if (connectState === "connected") {
     			device.gatt.disconnect();
-    			$$invalidate(4, connectState = "disconnected");
-    			$$invalidate(0, serviceList = []);
-    			$$invalidate(1, characteristicsList = []);
+    			reset();
     		}
+    	}
+
+    	function reset() {
+    		$$invalidate(11, gattServer = null);
+    		$$invalidate(7, service = null);
+    		$$invalidate(3, characteristic = null);
+    		$$invalidate(4, connectState = "disconnected");
+    		$$invalidate(0, serviceList = []);
+    		$$invalidate(1, characteristicsList = []);
+    		$$invalidate(6, selectedCharacteristicUUID = $$invalidate(5, selectedServiceUUID = undefined));
     	}
 
     	function select_change_handler() {
