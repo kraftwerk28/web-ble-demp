@@ -880,14 +880,14 @@
     			if (current) return;
 
     			add_render_callback(() => {
-    				if (!li_transition) li_transition = create_bidirectional_transition(li, slide, { duration: 200 }, true);
+    				if (!li_transition) li_transition = create_bidirectional_transition(li, slide, { duration: 100 }, true);
     				li_transition.run(1);
     			});
 
     			current = true;
     		},
     		o(local) {
-    			if (!li_transition) li_transition = create_bidirectional_transition(li, slide, { duration: 200 }, false);
+    			if (!li_transition) li_transition = create_bidirectional_transition(li, slide, { duration: 100 }, false);
     			li_transition.run(0);
     			current = false;
     		},
