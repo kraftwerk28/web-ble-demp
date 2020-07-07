@@ -122,19 +122,6 @@
     function set_input_value(input, value) {
         input.value = value == null ? '' : value;
     }
-    function select_option(select, value) {
-        for (let i = 0; i < select.options.length; i += 1) {
-            const option = select.options[i];
-            if (option.__value === value) {
-                option.selected = true;
-                return;
-            }
-        }
-    }
-    function select_value(select) {
-        const selected_option = select.querySelector(':checked') || select.options[0];
-        return selected_option && selected_option.__value;
-    }
     function toggle_class(element, name, toggle) {
         element.classList[toggle ? 'add' : 'remove'](name);
     }
@@ -2953,7 +2940,7 @@
     	return child_ctx;
     }
 
-    // (160:55) {:else}
+    // (161:55) {:else}
     function create_else_block(ctx) {
     	let t;
 
@@ -2970,7 +2957,7 @@
     	};
     }
 
-    // (160:45) 
+    // (161:45) 
     function create_if_block_5(ctx) {
     	let t;
 
@@ -2987,7 +2974,7 @@
     	};
     }
 
-    // (158:46) 
+    // (159:46) 
     function create_if_block_4(ctx) {
     	let t;
 
@@ -3004,7 +2991,7 @@
     	};
     }
 
-    // (156:6) {#if connectState === 'disconnected'}
+    // (157:6) {#if connectState === 'disconnected'}
     function create_if_block_3$1(ctx) {
     	let t;
 
@@ -3021,7 +3008,7 @@
     	};
     }
 
-    // (165:6) {#if serviceList.length}
+    // (172:6) {#if serviceList.length}
     function create_if_block_2$1(ctx) {
     	let each_1_anchor;
     	let each_value_1 = /*serviceList*/ ctx[0];
@@ -3077,28 +3064,22 @@
     	};
     }
 
-    // (166:8) {#each serviceList as service}
+    // (173:8) {#each serviceList as service}
     function create_each_block_1(ctx) {
     	let option;
-    	let t_value = /*service*/ ctx[7].readableName + "";
-    	let t;
     	let option_value_value;
 
     	return {
     		c() {
     			option = element("option");
-    			t = text(t_value);
-    			option.__value = option_value_value = /*service*/ ctx[7].uuid;
+    			option.__value = option_value_value = /*service*/ ctx[7].readableName;
     			option.value = option.__value;
     		},
     		m(target, anchor) {
     			insert(target, option, anchor);
-    			append(option, t);
     		},
     		p(ctx, dirty) {
-    			if (dirty & /*serviceList*/ 1 && t_value !== (t_value = /*service*/ ctx[7].readableName + "")) set_data(t, t_value);
-
-    			if (dirty & /*serviceList*/ 1 && option_value_value !== (option_value_value = /*service*/ ctx[7].uuid)) {
+    			if (dirty & /*serviceList*/ 1 && option_value_value !== (option_value_value = /*service*/ ctx[7].readableName)) {
     				option.__value = option_value_value;
     			}
 
@@ -3110,7 +3091,7 @@
     	};
     }
 
-    // (176:6) {#if characteristicsList.length && selectedServiceUUID}
+    // (190:6) {#if characteristicsList.length && service}
     function create_if_block_1$1(ctx) {
     	let each_1_anchor;
     	let each_value = /*characteristicsList*/ ctx[1];
@@ -3166,28 +3147,22 @@
     	};
     }
 
-    // (177:8) {#each characteristicsList as ch}
+    // (191:8) {#each characteristicsList as ch}
     function create_each_block$1(ctx) {
     	let option;
-    	let t_value = /*ch*/ ctx[18].readableName + "";
-    	let t;
     	let option_value_value;
 
     	return {
     		c() {
     			option = element("option");
-    			t = text(t_value);
-    			option.__value = option_value_value = /*ch*/ ctx[18].uuid;
+    			option.__value = option_value_value = /*ch*/ ctx[18].readableName;
     			option.value = option.__value;
     		},
     		m(target, anchor) {
     			insert(target, option, anchor);
-    			append(option, t);
     		},
     		p(ctx, dirty) {
-    			if (dirty & /*characteristicsList*/ 2 && t_value !== (t_value = /*ch*/ ctx[18].readableName + "")) set_data(t, t_value);
-
-    			if (dirty & /*characteristicsList*/ 2 && option_value_value !== (option_value_value = /*ch*/ ctx[18].uuid)) {
+    			if (dirty & /*characteristicsList*/ 2 && option_value_value !== (option_value_value = /*ch*/ ctx[18].readableName)) {
     				option.__value = option_value_value;
     			}
 
@@ -3199,7 +3174,7 @@
     	};
     }
 
-    // (184:4) {#if device && connectState === 'connected'}
+    // (198:4) {#if device && connectState === 'connected'}
     function create_if_block$2(ctx) {
     	let h3;
     	let t0;
@@ -3249,50 +3224,28 @@
     	let button;
     	let button_disabled_value;
     	let t4;
-    	let select0;
-    	let option0;
+    	let input0;
+    	let input0_disabled_value;
     	let t5;
+    	let datalist0;
     	let t6;
-    	let select1;
-    	let option1;
+    	let input1;
+    	let input1_disabled_value;
     	let t7;
+    	let datalist1;
+    	let option;
     	let t8;
-    	let br0;
     	let t9;
+    	let br;
     	let t10;
-    	let br1;
     	let t11;
-    	let span0;
-    	let t12_value = "Selected service:" + "";
-    	let t12;
-    	let t13;
-
-    	let t14_value = (/*selectedServiceUUID*/ ctx[5]
-    	? `0x${/*selectedServiceUUID*/ ctx[5].toString("16")}`
-    	: "none") + "";
-
-    	let t14;
-    	let t15;
-    	let br2;
-    	let t16;
-    	let span1;
-    	let t17_value = "Selected characteristic:" + "";
-    	let t17;
-    	let t18;
-
-    	let t19_value = (/*selectedCharacteristicUUID*/ ctx[6]
-    	? `0x${/*selectedCharacteristicUUID*/ ctx[6].toString("16")}`
-    	: "none") + "";
-
-    	let t19;
-    	let t20;
     	let div1;
     	let characteristic_1;
-    	let t21;
+    	let t12;
     	let hr;
-    	let t22;
+    	let t13;
     	let messagelog;
-    	let t23;
+    	let t14;
     	let footer;
     	let current;
     	let mounted;
@@ -3309,7 +3262,7 @@
     	let current_block_type = select_block_type(ctx);
     	let if_block0 = current_block_type(ctx);
     	let if_block1 = /*serviceList*/ ctx[0].length && create_if_block_2$1(ctx);
-    	let if_block2 = /*characteristicsList*/ ctx[1].length && /*selectedServiceUUID*/ ctx[5] && create_if_block_1$1(ctx);
+    	let if_block2 = /*characteristicsList*/ ctx[1].length && /*service*/ ctx[7] && create_if_block_1$1(ctx);
     	let if_block3 = /*device*/ ctx[2] && /*connectState*/ ctx[4] === "connected" && create_if_block$2(ctx);
     	characteristic_1 = new Characteristic({ props: { ch: /*characteristic*/ ctx[3] } });
     	messagelog = new MessageLog({});
@@ -3328,57 +3281,47 @@
     			button = element("button");
     			if_block0.c();
     			t4 = space();
-    			select0 = element("select");
-    			option0 = element("option");
-    			t5 = text("Select service...");
+    			input0 = element("input");
+    			t5 = space();
+    			datalist0 = element("datalist");
     			if (if_block1) if_block1.c();
     			t6 = space();
-    			select1 = element("select");
-    			option1 = element("option");
-    			t7 = text("Select characteristic...\n      ");
+    			input1 = element("input");
+    			t7 = space();
+    			datalist1 = element("datalist");
+    			option = element("option");
+    			t8 = text("Select characteristic...\n      ");
     			if (if_block2) if_block2.c();
-    			t8 = space();
-    			br0 = element("br");
     			t9 = space();
-    			if (if_block3) if_block3.c();
+    			br = element("br");
     			t10 = space();
-    			br1 = element("br");
+    			if (if_block3) if_block3.c();
     			t11 = space();
-    			span0 = element("span");
-    			t12 = text(t12_value);
-    			t13 = space();
-    			t14 = text(t14_value);
-    			t15 = space();
-    			br2 = element("br");
-    			t16 = space();
-    			span1 = element("span");
-    			t17 = text(t17_value);
-    			t18 = space();
-    			t19 = text(t19_value);
-    			t20 = space();
     			div1 = element("div");
     			create_component(characteristic_1.$$.fragment);
-    			t21 = space();
+    			t12 = space();
     			hr = element("hr");
-    			t22 = space();
+    			t13 = space();
     			create_component(messagelog.$$.fragment);
-    			t23 = space();
+    			t14 = space();
     			create_component(footer.$$.fragment);
     			attr(h3, "class", "svelte-1wuktin");
     			toggle_class(h3, "connected", /*connectState*/ ctx[4] === "connected");
     			toggle_class(h3, "connecting", /*connectState*/ ctx[4] === "connecting");
     			toggle_class(h3, "failed", /*connectState*/ ctx[4] === "failed");
     			button.disabled = button_disabled_value = /*connectState*/ ctx[4] === "connecting";
-    			option0.selected = true;
-    			option0.disabled = true;
-    			option0.__value = undefined;
-    			option0.value = option0.__value;
-    			if (/*selectedServiceUUID*/ ctx[5] === void 0) add_render_callback(() => /*select0_change_handler*/ ctx[9].call(select0));
-    			option1.selected = true;
-    			option1.disabled = true;
-    			option1.__value = undefined;
-    			option1.value = option1.__value;
-    			if (/*selectedCharacteristicUUID*/ ctx[6] === void 0) add_render_callback(() => /*select1_change_handler*/ ctx[10].call(select1));
+    			attr(input0, "list", "services");
+    			input0.disabled = input0_disabled_value = /*connectState*/ ctx[4] !== "connected";
+    			attr(input0, "placeholder", "Choose service");
+    			attr(datalist0, "id", "services");
+    			attr(input1, "list", "characteristics");
+    			input1.disabled = input1_disabled_value = /*connectState*/ ctx[4] !== "connected";
+    			attr(input1, "placeholder", "Choose characteristic");
+    			option.selected = true;
+    			option.disabled = true;
+    			option.__value = undefined;
+    			option.value = option.__value;
+    			attr(datalist1, "id", "characteristics");
     			attr(div0, "class", "svelte-1wuktin");
     			attr(div1, "class", "svelte-1wuktin");
     			attr(div2, "class", "double-side svelte-1wuktin");
@@ -3395,51 +3338,41 @@
     			append(div0, button);
     			if_block0.m(button, null);
     			append(div0, t4);
-    			append(div0, select0);
-    			append(select0, option0);
-    			append(option0, t5);
-    			if (if_block1) if_block1.m(select0, null);
-    			select_option(select0, /*selectedServiceUUID*/ ctx[5]);
+    			append(div0, input0);
+    			set_input_value(input0, /*selectedServiceName*/ ctx[5]);
+    			append(div0, t5);
+    			append(div0, datalist0);
+    			if (if_block1) if_block1.m(datalist0, null);
     			append(div0, t6);
-    			append(div0, select1);
-    			append(select1, option1);
-    			append(option1, t7);
-    			if (if_block2) if_block2.m(select1, null);
-    			select_option(select1, /*selectedCharacteristicUUID*/ ctx[6]);
-    			append(div0, t8);
-    			append(div0, br0);
+    			append(div0, input1);
+    			set_input_value(input1, /*selectedCharacteristicName*/ ctx[6]);
+    			append(div0, t7);
+    			append(div0, datalist1);
+    			append(datalist1, option);
+    			append(option, t8);
+    			if (if_block2) if_block2.m(datalist1, null);
     			append(div0, t9);
-    			if (if_block3) if_block3.m(div0, null);
+    			append(div0, br);
     			append(div0, t10);
-    			append(div0, br1);
-    			append(div0, t11);
-    			append(div0, span0);
-    			append(span0, t12);
-    			append(span0, t13);
-    			append(span0, t14);
-    			append(div0, t15);
-    			append(div0, br2);
-    			append(div0, t16);
-    			append(div0, span1);
-    			append(span1, t17);
-    			append(span1, t18);
-    			append(span1, t19);
-    			append(div2, t20);
+    			if (if_block3) if_block3.m(div0, null);
+    			append(div2, t11);
     			append(div2, div1);
     			mount_component(characteristic_1, div1, null);
-    			insert(target, t21, anchor);
+    			insert(target, t12, anchor);
     			insert(target, hr, anchor);
-    			insert(target, t22, anchor);
+    			insert(target, t13, anchor);
     			mount_component(messagelog, target, anchor);
-    			insert(target, t23, anchor);
+    			insert(target, t14, anchor);
     			mount_component(footer, target, anchor);
     			current = true;
 
     			if (!mounted) {
     				dispose = [
-    					listen(button, "click", /*manipulateConnection*/ ctx[8]),
-    					listen(select0, "change", /*select0_change_handler*/ ctx[9]),
-    					listen(select1, "change", /*select1_change_handler*/ ctx[10])
+    					listen(button, "click", /*manipulateConnection*/ ctx[10]),
+    					listen(input0, "change", /*updateService*/ ctx[8]),
+    					listen(input0, "input", /*input0_input_handler*/ ctx[11]),
+    					listen(input1, "input", /*input1_input_handler*/ ctx[12]),
+    					listen(input1, "change", /*updateCharacteristic*/ ctx[9])
     				];
 
     				mounted = true;
@@ -3474,38 +3407,46 @@
     				button.disabled = button_disabled_value;
     			}
 
+    			if (!current || dirty & /*connectState*/ 16 && input0_disabled_value !== (input0_disabled_value = /*connectState*/ ctx[4] !== "connected")) {
+    				input0.disabled = input0_disabled_value;
+    			}
+
+    			if (dirty & /*selectedServiceName*/ 32 && input0.value !== /*selectedServiceName*/ ctx[5]) {
+    				set_input_value(input0, /*selectedServiceName*/ ctx[5]);
+    			}
+
     			if (/*serviceList*/ ctx[0].length) {
     				if (if_block1) {
     					if_block1.p(ctx, dirty);
     				} else {
     					if_block1 = create_if_block_2$1(ctx);
     					if_block1.c();
-    					if_block1.m(select0, null);
+    					if_block1.m(datalist0, null);
     				}
     			} else if (if_block1) {
     				if_block1.d(1);
     				if_block1 = null;
     			}
 
-    			if (dirty & /*selectedServiceUUID, serviceList, undefined*/ 33) {
-    				select_option(select0, /*selectedServiceUUID*/ ctx[5]);
+    			if (!current || dirty & /*connectState*/ 16 && input1_disabled_value !== (input1_disabled_value = /*connectState*/ ctx[4] !== "connected")) {
+    				input1.disabled = input1_disabled_value;
     			}
 
-    			if (/*characteristicsList*/ ctx[1].length && /*selectedServiceUUID*/ ctx[5]) {
+    			if (dirty & /*selectedCharacteristicName*/ 64 && input1.value !== /*selectedCharacteristicName*/ ctx[6]) {
+    				set_input_value(input1, /*selectedCharacteristicName*/ ctx[6]);
+    			}
+
+    			if (/*characteristicsList*/ ctx[1].length && /*service*/ ctx[7]) {
     				if (if_block2) {
     					if_block2.p(ctx, dirty);
     				} else {
     					if_block2 = create_if_block_1$1(ctx);
     					if_block2.c();
-    					if_block2.m(select1, null);
+    					if_block2.m(datalist1, null);
     				}
     			} else if (if_block2) {
     				if_block2.d(1);
     				if_block2 = null;
-    			}
-
-    			if (dirty & /*selectedCharacteristicUUID, characteristicsList, undefined*/ 66) {
-    				select_option(select1, /*selectedCharacteristicUUID*/ ctx[6]);
     			}
 
     			if (/*device*/ ctx[2] && /*connectState*/ ctx[4] === "connected") {
@@ -3514,20 +3455,12 @@
     				} else {
     					if_block3 = create_if_block$2(ctx);
     					if_block3.c();
-    					if_block3.m(div0, t10);
+    					if_block3.m(div0, null);
     				}
     			} else if (if_block3) {
     				if_block3.d(1);
     				if_block3 = null;
     			}
-
-    			if ((!current || dirty & /*selectedServiceUUID*/ 32) && t14_value !== (t14_value = (/*selectedServiceUUID*/ ctx[5]
-    			? `0x${/*selectedServiceUUID*/ ctx[5].toString("16")}`
-    			: "none") + "")) set_data(t14, t14_value);
-
-    			if ((!current || dirty & /*selectedCharacteristicUUID*/ 64) && t19_value !== (t19_value = (/*selectedCharacteristicUUID*/ ctx[6]
-    			? `0x${/*selectedCharacteristicUUID*/ ctx[6].toString("16")}`
-    			: "none") + "")) set_data(t19, t19_value);
 
     			const characteristic_1_changes = {};
     			if (dirty & /*characteristic*/ 8) characteristic_1_changes.ch = /*characteristic*/ ctx[3];
@@ -3559,11 +3492,11 @@
     			if (if_block2) if_block2.d();
     			if (if_block3) if_block3.d();
     			destroy_component(characteristic_1);
-    			if (detaching) detach(t21);
+    			if (detaching) detach(t12);
     			if (detaching) detach(hr);
-    			if (detaching) detach(t22);
+    			if (detaching) detach(t13);
     			destroy_component(messagelog, detaching);
-    			if (detaching) detach(t23);
+    			if (detaching) detach(t14);
     			destroy_component(footer, detaching);
     			mounted = false;
     			run_all(dispose);
@@ -3579,8 +3512,8 @@
     	let service;
     	let characteristic;
     	let connectState = "disconnected";
-    	let selectedServiceUUID;
-    	let selectedCharacteristicUUID;
+    	let selectedServiceName;
+    	let selectedCharacteristicName;
 
     	const bleOptions = {
     		acceptAllDevices: true,
@@ -3592,7 +3525,6 @@
     		console.log("GATT server:", gattServer);
     		const services = await gattServer.getPrimaryServices();
     		console.log("Services list:", services);
-    		await registerDevice(device, services).catch(log);
     		$$invalidate(4, connectState = "connected");
 
     		$$invalidate(0, serviceList = services.map(s => {
@@ -3602,24 +3534,29 @@
     		}).filter(s => s));
 
     		$$invalidate(1, characteristicsList = CHARACTERISTICS);
+    		await registerDevice(device, services).catch(log);
     	}
 
-    	function updateService(uuid) {
-    		if (!gattServer || !uuid) return;
+    	function updateService(e) {
+    		const name = e.target.value;
+    		if (!gattServer || !name) return;
+    		const uuid = ALL_SERVICES.find(s => s.readableName === name).uuid;
 
     		gattServer.getPrimaryService(uuid).then(s => {
     			console.log("Service:", s);
     			$$invalidate(7, service = s);
 
-    			if (selectedCharacteristicUUID) {
-    				$$invalidate(6, selectedCharacteristicUUID = undefined);
+    			if (selectedCharacteristicName) {
+    				$$invalidate(6, selectedCharacteristicName = undefined);
     				$$invalidate(3, characteristic = null);
     			}
     		}).catch(log);
     	}
 
-    	function updateCharacteristic(uuid) {
-    		if (!gattServer || !service || !uuid) return;
+    	function updateCharacteristic(e) {
+    		const name = e.target.value;
+    		if (!gattServer || !service || !name) return;
+    		const uuid = CHARACTERISTICS.find(c => c.readableName === name).uuid;
 
     		service.getCharacteristic(uuid).then(ch => {
     			console.log("Characteristic", ch);
@@ -3668,30 +3605,18 @@
     		$$invalidate(4, connectState = "disconnected");
     		$$invalidate(0, serviceList = []);
     		$$invalidate(1, characteristicsList = []);
-    		$$invalidate(6, selectedCharacteristicUUID = $$invalidate(5, selectedServiceUUID = undefined));
+    		$$invalidate(6, selectedCharacteristicName = $$invalidate(5, selectedServiceName = undefined));
     	}
 
-    	function select0_change_handler() {
-    		selectedServiceUUID = select_value(this);
-    		$$invalidate(5, selectedServiceUUID);
-    		$$invalidate(0, serviceList);
+    	function input0_input_handler() {
+    		selectedServiceName = this.value;
+    		$$invalidate(5, selectedServiceName);
     	}
 
-    	function select1_change_handler() {
-    		selectedCharacteristicUUID = select_value(this);
-    		$$invalidate(6, selectedCharacteristicUUID);
-    		$$invalidate(1, characteristicsList);
+    	function input1_input_handler() {
+    		selectedCharacteristicName = this.value;
+    		$$invalidate(6, selectedCharacteristicName);
     	}
-
-    	$$self.$$.update = () => {
-    		if ($$self.$$.dirty & /*selectedServiceUUID*/ 32) {
-    			 updateService(selectedServiceUUID);
-    		}
-
-    		if ($$self.$$.dirty & /*selectedCharacteristicUUID*/ 64) {
-    			 updateCharacteristic(selectedCharacteristicUUID);
-    		}
-    	};
 
     	return [
     		serviceList,
@@ -3699,12 +3624,14 @@
     		device,
     		characteristic,
     		connectState,
-    		selectedServiceUUID,
-    		selectedCharacteristicUUID,
+    		selectedServiceName,
+    		selectedCharacteristicName,
     		service,
+    		updateService,
+    		updateCharacteristic,
     		manipulateConnection,
-    		select0_change_handler,
-    		select1_change_handler
+    		input0_input_handler,
+    		input1_input_handler
     	];
     }
 
