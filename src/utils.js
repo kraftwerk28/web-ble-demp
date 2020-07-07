@@ -21,6 +21,12 @@ export function decodeTextValue(data) {
   return textDecoder.decode(data);
 }
 
+export function byteRepr(val, rev) {
+  return Array(8)
+    .fill()
+    .map((_, i) => (val >> (rev ? i : 7 - i)) & 1);
+}
+
 export function decodeDataView(dv) {
   const arr = [];
   for (let i = 0; i < dv.byteLength; i++) {

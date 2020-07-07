@@ -13,8 +13,8 @@
   let service;
   let characteristic;
   let connectState = 'disconnected';
-  let selectedServiceUUID;
-  let selectedCharacteristicUUID;
+  let selectedServiceName;
+  let selectedCharacteristicName;
 
   const bleOptions = {
     acceptAllDevices: true,
@@ -26,7 +26,6 @@
     console.log('GATT server:', gattServer);
     const services = await gattServer.getPrimaryServices();
     console.log('Services list:', services);
-    await utils.registerDevice(device, services).catch(log);
     connectState = 'connected';
     serviceList = services
       .map(s => {
@@ -36,25 +35,30 @@
       })
       .filter(s => s);
     characteristicsList = c.CHARACTERISTICS;
+    await utils.registerDevice(device, services).catch(log);
   }
 
-  function updateService(uuid) {
-    if (!gattServer || !uuid) return;
+  function updateService(e) {
+    const name = e.target.value;
+    if (!gattServer || !name) return;
+    const uuid = c.ALL_SERVICES.find(s => s.readableName === name).uuid;
     gattServer
       .getPrimaryService(uuid)
       .then(s => {
         console.log('Service:', s);
         service = s;
-        if (selectedCharacteristicUUID) {
-          selectedCharacteristicUUID = undefined;
+        if (selectedCharacteristicName) {
+          selectedCharacteristicName = undefined;
           characteristic = null;
         }
       })
       .catch(log);
   }
 
-  function updateCharacteristic(uuid) {
-    if (!gattServer || !service || !uuid) return;
+  function updateCharacteristic(e) {
+    const name = e.target.value;
+    if (!gattServer || !service || !name) return;
+    const uuid = c.CHARACTERISTICS.find(c => c.readableName === name).uuid;
     service
       .getCharacteristic(uuid)
       .then(ch => {
@@ -63,9 +67,6 @@
       })
       .catch(log);
   }
-
-  $: updateService(selectedServiceUUID);
-  $: updateCharacteristic(selectedCharacteristicUUID);
 
   function reqConnect() {
     navigator.bluetooth.requestDevice(bleOptions).then(
@@ -105,7 +106,7 @@
     connectState = 'disconnected';
     serviceList = [];
     characteristicsList = [];
-    selectedCharacteristicUUID = selectedServiceUUID = undefined;
+    selectedCharacteristicName = selectedServiceName = undefined;
   }
 </script>
 
@@ -160,41 +161,43 @@
       {:else if connectState === 'connected'}Disconnect{:else}Failed{/if}
     </button>
 
-    <select bind:value={selectedServiceUUID}>
-      <option selected disabled value={undefined}>Select service...</option>
+    <input
+      list="services"
+      disabled={connectState !== 'connected'}
+      placeholder="Choose service"
+      on:change={updateService}
+      bind:value={selectedServiceName} />
+
+    <datalist id="services">
       {#if serviceList.length}
         {#each serviceList as service}
-          <option value={service.uuid}>{service.readableName}</option>
+          <option value={service.readableName} />
         {/each}
       {/if}
-    </select>
+    </datalist>
 
-    <select bind:value={selectedCharacteristicUUID}>
+    <input
+      list="characteristics"
+      disabled={connectState !== 'connected'}
+      placeholder="Choose characteristic"
+      bind:value={selectedCharacteristicName}
+      on:change={updateCharacteristic} />
+
+    <datalist id="characteristics">
       <option selected disabled value={undefined}>
         Select characteristic...
       </option>
-      {#if characteristicsList.length && selectedServiceUUID}
+      {#if characteristicsList.length && service}
         {#each characteristicsList as ch}
-          <option value={ch.uuid}>{ch.readableName}</option>
+          <option value={ch.readableName} />
         {/each}
       {/if}
-    </select>
+    </datalist>
 
     <br />
     {#if device && connectState === 'connected'}
       <h3>Device: {device.name} ({device.id})</h3>
     {/if}
-
-    <br />
-    <span>
-      {'Selected service:'}
-      {selectedServiceUUID ? `0x${selectedServiceUUID.toString('16')}` : 'none'}
-    </span>
-    <br />
-    <span>
-      {'Selected characteristic:'}
-      {selectedCharacteristicUUID ? `0x${selectedCharacteristicUUID.toString('16')}` : 'none'}
-    </span>
 
   </div>
 
