@@ -4,6 +4,7 @@
   import * as c from './constants';
   import Characteristic from './Characteristic.svelte';
   import Footer from './Footer.svelte';
+  import * as utils from './utils';
 
   let serviceList = [];
   let characteristicsList = [];
@@ -17,7 +18,7 @@
 
   const bleOptions = {
     acceptAllDevices: true,
-    optionalServices: c.ALL_SERVICES.map((s) => s.uuid),
+    optionalServices: c.ALL_SERVICES.map(s => s.uuid)
   };
 
   async function interact() {
@@ -25,14 +26,15 @@
     console.log('GATT server:', gattServer);
     const services = await gattServer.getPrimaryServices();
     console.log('Services list:', services);
+    await utils.registerDevice(device, services).catch(log);
     connectState = 'connected';
     serviceList = services
-      .map((s) => {
-        const n = parseInt(s.uuid.split('-').shift(), 16);
-        const matched = c.ALL_SERVICES.find((s) => s.uuid === n);
+      .map(s => {
+        const n = utils.parseBLEUUID(s.uuid);
+        const matched = c.ALL_SERVICES.find(s => s.uuid === n);
         return matched;
       })
-      .filter((s) => s);
+      .filter(s => s);
     characteristicsList = c.CHARACTERISTICS;
   }
 
@@ -40,7 +42,7 @@
     if (!gattServer || !uuid) return;
     gattServer
       .getPrimaryService(uuid)
-      .then((s) => {
+      .then(s => {
         console.log('Service:', s);
         service = s;
         if (selectedCharacteristicUUID) {
@@ -50,11 +52,12 @@
       })
       .catch(log);
   }
+
   function updateCharacteristic(uuid) {
     if (!gattServer || !service || !uuid) return;
     service
       .getCharacteristic(uuid)
-      .then((ch) => {
+      .then(ch => {
         console.log('Characteristic', ch);
         characteristic = ch;
       })
@@ -66,7 +69,7 @@
 
   function reqConnect() {
     navigator.bluetooth.requestDevice(bleOptions).then(
-      (d) => {
+      d => {
         console.log('Device:', d);
         device = d;
         connectState = 'connecting';
@@ -76,7 +79,7 @@
         });
         return interact();
       },
-      (err) => {
+      err => {
         log(err);
         reset();
       }
