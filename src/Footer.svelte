@@ -1,6 +1,18 @@
+<script>
+  import { fade } from 'svelte/transition';
+  let fvisible = true;
+  function onScroll() {
+    if (window.scrollY > 10 && fvisible) {
+      fvisible = false;
+    } else if (window.scrollY <= 10 && !fvisible) {
+      fvisible = true;
+    }
+  }
+</script>
+
 <style>
   .footer {
-    background: #FFF;
+    background: #fff;
     position: fixed;
     bottom: 0px;
     border-top: 1px solid #000;
@@ -10,7 +22,10 @@
   }
 </style>
 
-<div class="footer">
-  Made by
-  <a href="https://kraftwerk28.pp.ua" target="_blank">@kraftwerk28</a>
-</div>
+<svelte:window on:scroll={onScroll} />
+{#if fvisible}
+  <div transition:fade class="footer">
+    Made by
+    <a href="https://kraftwerk28.pp.ua" target="_blank">@kraftwerk28</a>
+  </div>
+{/if}

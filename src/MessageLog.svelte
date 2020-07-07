@@ -75,7 +75,10 @@
   </h3>
   <ol>
     {#each $msgLog as msg, i (msg.id)}
-      <li transition:slide on:click={removeAt(i)} class={`message-${msg.type}`}>
+      <li
+        transition:slide={{ duration: 200 }}
+        on:click={removeAt(i)}
+        class={`message-${msg.type}`}>
         {msg.id}{'. '}{msg.text}
       </li>
     {/each}
