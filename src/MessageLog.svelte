@@ -76,7 +76,7 @@
   <ol>
     {#each $msgLog as msg, i (msg.id)}
       <li
-        transition:slide={{ duration: 200 }}
+        transition:slide={{ duration: 100 }}
         on:click={removeAt(i)}
         class={`message-${msg.type}`}>
         {msg.id}{'. '}{msg.text}

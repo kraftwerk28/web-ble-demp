@@ -5,11 +5,8 @@
 
   export let ch;
 
-  function decodeValue(val) {
-    return Array.from(val).toString();
-  }
-
   let readResult;
+  let writeValue = '';
   let isNotifying = false;
   function onReadValue() {
     ch.readValue()
@@ -20,7 +17,19 @@
       .catch(log);
   }
 
-  async function onWriteValue() {}
+  async function onWriteValue() {
+    const arr = writeValue.split(',').map((v) => +v.trim());
+    if (arr.some((v) => isNaN(v))) {
+      log('Bad list supplied.', 'error');
+      return;
+    }
+    const typedArr = Uint8Array.from(arr);
+    ch.writeValue(typedArr)
+      .then(() => {
+        writeValue = '';
+      })
+      .catch(log);
+  }
 
   async function onToggleNotify() {
     if (isNotifying) {
@@ -43,14 +52,28 @@
 
 <h3>Current characteristic:</h3>
 {#if ch}
-  <form on:submit|preventDefault={onReadValue}>
-    <button type="submit">Read value</button>
-    <input type="text" value={readResult || ''} readonly />
-  </form>
+  {#if ch.properties.read}
+    <form on:submit|preventDefault={onReadValue}>
+      <button type="submit">Read value</button>
+      <input placeholder="none" type="text" value={readResult || ''} readonly />
+    </form>
+  {/if}
 
-  <form on:submit|preventDefault={onToggleNotify}>
-    <button type="submit">
-      {!isNotifying ? 'Start notify' : 'Stop notifications'}
-    </button>
-  </form>
+  {#if ch.properties.write || ch.properties.writeWithoutResponse || ch.properties.writeAuxilaries}
+    <form on:submit|preventDefault={onWriteValue}>
+      <button type="submit">Write value</button>
+      <input
+        placeholder="Comma-separated list of values..."
+        type="text"
+        bind:value={writeValue} />
+    </form>
+  {/if}
+
+  {#if ch.properties.notify || ch.properties.indicate}
+    <form on:submit|preventDefault={onToggleNotify}>
+      <button type="submit">
+        {!isNotifying ? 'Start notify' : 'Stop notifications'}
+      </button>
+    </form>
+  {/if}
 {/if}

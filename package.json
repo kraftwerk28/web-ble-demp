@@ -8,7 +8,7 @@
     "start": "rollup -cw",
     "build": "rollup -c",
     "serve": "serve --ssl-cert ~/ca-tmp/localhost.crt --ssl-key ~/ca-tmp/localhost.key -l 8080 public/",
-    "deploy": "gh-pages -d public/"
+    "deploy": "npm run build && gh-pages -d public/"
   },
   "keywords": [],
   "author": "kraftwerk28 <kefirchik3@gmail.com>",

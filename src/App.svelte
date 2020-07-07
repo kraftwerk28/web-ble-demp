@@ -22,10 +22,10 @@
 
   async function interact() {
     gattServer = await device.gatt.connect();
-    connectState = 'connected';
     console.log('GATT server:', gattServer);
     const services = await gattServer.getPrimaryServices();
     console.log('Services list:', services);
+    connectState = 'connected';
     serviceList = services
       .map((s) => {
         const n = parseInt(s.uuid.split('-').shift(), 16);
@@ -36,23 +36,33 @@
     characteristicsList = c.CHARACTERISTICS;
   }
 
-  $: {
-    if (gattServer && selectedServiceUUID) {
-      gattServer
-        .getPrimaryService(selectedServiceUUID)
-        .then((s) => (service = s))
-        .catch(log);
-    }
+  function updateService(uuid) {
+    if (!gattServer || !uuid) return;
+    gattServer
+      .getPrimaryService(uuid)
+      .then((s) => {
+        console.log('Service:', s);
+        service = s;
+        if (selectedCharacteristicUUID) {
+          selectedCharacteristicUUID = undefined;
+          characteristic = null;
+        }
+      })
+      .catch(log);
+  }
+  function updateCharacteristic(uuid) {
+    if (!gattServer || !service || !uuid) return;
+    service
+      .getCharacteristic(uuid)
+      .then((ch) => {
+        console.log('Characteristic', ch);
+        characteristic = ch;
+      })
+      .catch(log);
   }
 
-  $: {
-    if (gattServer && service && selectedCharacteristicUUID) {
-      service
-        .getCharacteristic(selectedCharacteristicUUID)
-        .then((ch) => (characteristic = ch))
-        .catch(log);
-    }
-  }
+  $: updateService(selectedServiceUUID);
+  $: updateCharacteristic(selectedCharacteristicUUID);
 
   function reqConnect() {
     navigator.bluetooth.requestDevice(bleOptions).then(
@@ -60,7 +70,10 @@
         console.log('Device:', d);
         device = d;
         connectState = 'connecting';
-        device.addEventListener('gattserverdisconnected', reset);
+        device.addEventListener('gattserverdisconnected', () => {
+          log('Disconnected', 'warn');
+          reset();
+        });
         return interact();
       },
       (err) => {
@@ -144,25 +157,25 @@
       {:else if connectState === 'connected'}Disconnect{:else}Failed{/if}
     </button>
 
-    {#if serviceList.length}
-      <select bind:value={selectedServiceUUID}>
-        <option selected disabled value={undefined}>Select service...</option>
+    <select bind:value={selectedServiceUUID}>
+      <option selected disabled value={undefined}>Select service...</option>
+      {#if serviceList.length}
         {#each serviceList as service}
           <option value={service.uuid}>{service.readableName}</option>
         {/each}
-      </select>
-    {/if}
+      {/if}
+    </select>
 
-    {#if characteristicsList.length && selectedServiceUUID}
-      <select bind:value={selectedCharacteristicUUID}>
-        <option selected disabled value={undefined}>
-          Select characteristic...
-        </option>
+    <select bind:value={selectedCharacteristicUUID}>
+      <option selected disabled value={undefined}>
+        Select characteristic...
+      </option>
+      {#if characteristicsList.length && selectedServiceUUID}
         {#each characteristicsList as ch}
           <option value={ch.uuid}>{ch.readableName}</option>
         {/each}
-      </select>
-    {/if}
+      {/if}
+    </select>
 
     <br />
     {#if device && connectState === 'connected'}

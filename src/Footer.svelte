@@ -1,10 +1,11 @@
 <script>
   import { fade } from 'svelte/transition';
   let fvisible = true;
+  const THRESHOLD = 1;
   function onScroll() {
-    if (window.scrollY > 10 && fvisible) {
+    if (window.scrollY > THRESHOLD && fvisible) {
       fvisible = false;
-    } else if (window.scrollY <= 10 && !fvisible) {
+    } else if (window.scrollY <= THRESHOLD && !fvisible) {
       fvisible = true;
     }
   }
