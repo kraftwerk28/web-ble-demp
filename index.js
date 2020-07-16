@@ -885,6 +885,13 @@
         readableName: 'Weight Scale',
         uuid: 0x181d,
       },
+
+      // Custom servies:
+      {
+        name: 'telematics_service_1',
+        readableName: 'Telematics box service 1',
+        uuid: '4150d663-6366-4261-bf34-b5da50d7e5a7',
+      },
     ];
 
     const CHARACTERISTICS = [
@@ -2078,6 +2085,13 @@
         readableName: 'Wind Chill',
         uuid: 0x2a79,
       },
+
+      // Custom characteristics:
+      {
+        name: 'telematics_box_characteristic_1',
+        readableName: 'Telematics box characteristic 1',
+        uuid: '33b46ca9-e00b-4a7d-9e32-e4fb454c1079',
+      },
     ];
 
     const genuuid = (function* () {
@@ -2094,7 +2108,10 @@
     }
 
     function parseBLEUUID(uuid) {
-      return parseInt(uuid.split('-').shift(), 16);
+      if (uuid.startsWith('0000')) {
+        return parseInt(uuid.split('-').shift(), 16);
+      }
+      return uuid;
     }
 
     function decodeDataView(dv) {
