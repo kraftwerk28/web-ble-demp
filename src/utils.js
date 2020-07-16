@@ -14,7 +14,10 @@ export function uuid() {
 }
 
 export function parseBLEUUID(uuid) {
-  return parseInt(uuid.split('-').shift(), 16);
+  if (uuid.startsWith('0000')) {
+    return parseInt(uuid.split('-').shift(), 16);
+  }
+  return uuid;
 }
 
 export function decodeTextValue(data) {

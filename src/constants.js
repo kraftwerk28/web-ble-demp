@@ -199,6 +199,13 @@ export const ALL_SERVICES = [
     readableName: 'Weight Scale',
     uuid: 0x181d,
   },
+
+  // Custom servies:
+  {
+    name: 'telematics_service_1',
+    readableName: 'Telematics box service 1',
+    uuid: '4150d663-6366-4261-bf34-b5da50d7e5a7',
+  },
 ];
 
 export const CHARACTERISTICS = [
@@ -1391,6 +1398,13 @@ export const CHARACTERISTICS = [
     name: 'wind_chill',
     readableName: 'Wind Chill',
     uuid: 0x2a79,
+  },
+
+  // Custom characteristics:
+  {
+    name: 'telematics_box_characteristic_1',
+    readableName: 'Telematics box characteristic 1',
+    uuid: '33b46ca9-e00b-4a7d-9e32-e4fb454c1079',
   },
 ];
 

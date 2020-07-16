@@ -75,13 +75,19 @@ async function list_devides_table(req, res) {
     .get();
   const tableHead = ['id', 'name', 'services', 'timestamp'];
   const rows = [];
+  // let lastID = null;
   list.forEach((doc) => {
     const device = doc.data();
+    // if (device.id === lastID) {
+    //   return;
+    // } else {
+    //   lastID = device.id;
+    // }
     const cells = [
       device.id,
       device.name,
       device.services.map((service) => service.name).join(', '),
-      new Date(device.timestamp._seconds * 1e3).toLocaleDateString(),
+      new Date(device.timestamp._seconds * 1e3).toLocaleString('uk-UA'),
     ];
     const tRow = `<tr>${cells.map((cell) => `<td>${cell}</td>`).join('')}</tr>`;
     rows.push(tRow);
